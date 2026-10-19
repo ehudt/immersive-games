@@ -34,18 +34,17 @@ export interface QualityLevel {
 }
 
 /**
- * The ladder from best to cheapest. Bloom and particles go before sharpness
- * drops below 1×, since a blurry picture hurts readability more than a
- * missing glow does.
+ * The ladder from best to cheapest. Bloom (the most expensive effect) goes
+ * first, then resolution down to 1× and particles; going below 1× is the last
+ * resort, since a blurry picture hurts readability more than a missing glow.
  */
 export function qualityLevels(maxPixelRatio: number): QualityLevel[] {
   const max = Math.max(0.75, maxPixelRatio);
   const one = Math.min(max, 1);
   const levels: QualityLevel[] = [
     { pixelRatio: max, bloom: true, detail: 1 },
-    { pixelRatio: Math.min(max, 1.25), bloom: true, detail: 1 },
-    { pixelRatio: one, bloom: true, detail: 1 },
-    { pixelRatio: one, bloom: false, detail: 0.6 },
+    { pixelRatio: max, bloom: false, detail: 0.6 },
+    { pixelRatio: Math.min(max, 1.25), bloom: false, detail: 0.6 },
     { pixelRatio: one, bloom: false, detail: 0.2 },
     { pixelRatio: 0.75, bloom: false, detail: 0.2 },
   ];
@@ -68,19 +67,23 @@ export class AdaptiveQuality {
     private readonly targetFps = 50,
   ) {
     this.adaptive = preset === 'auto';
-    // 'low' starts at the first rung without bloom.
-    this.index = preset === 'low' ? Math.max(0, levels.findIndex((l) => !l.bloom)) : 0;
+    // 'low' starts at the first rung without bloom at 1× or less.
+    this.index = preset === 'low' ? Math.max(0, levels.findIndex((l) => !l.bloom && l.pixelRatio <= 1)) : 0;
   }
 
   get level(): QualityLevel {
     return this.levels[this.index];
   }
 
-  /** Feed the once-per-second fps; returns the new level, or null if unchanged. */
+  /**
+   * Feed the once-per-second fps; returns the new level, or null if unchanged.
+   * Steps down after two slow seconds, or after one when far below target.
+   */
   update(fps: number): QualityLevel | null {
     if (!this.adaptive) return null;
     this.slowSeconds = fps < this.targetFps ? this.slowSeconds + 1 : 0;
-    if (this.slowSeconds < 2 || this.index >= this.levels.length - 1) return null;
+    const needed = fps < this.targetFps * 0.7 ? 1 : 2;
+    if (this.slowSeconds < needed || this.index >= this.levels.length - 1) return null;
     this.slowSeconds = 0;
     this.index++;
     return this.level;

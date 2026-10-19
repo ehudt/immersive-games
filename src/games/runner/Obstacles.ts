@@ -99,6 +99,18 @@ export class Obstacles {
     }
   }
 
+  /** One obstacle of every kind, for compiling their shaders before they are needed. */
+  samples(): THREE.Group {
+    const g = new THREE.Group();
+    const kinds = ['jump', 'duck', 'lane', 'reach'] as const;
+    kinds.forEach((kind, i) => {
+      const { obj } = this.assets.build({ id: -1 - i, time: 0, distance: 0, kind, lane: 0 });
+      obj.position.z = -6 - i * 3;
+      g.add(obj);
+    });
+    return g;
+  }
+
   dispose(): void {
     this.assets.dispose();
   }
@@ -130,7 +142,7 @@ class ObstacleAssets {
   private arrow: THREE.ShapeGeometry;
   private glow = glowTexture();
   private mats = {
-    stone: new THREE.MeshStandardMaterial({ color: '#6a6596', roughness: 0.85 }),
+    stone: new THREE.MeshStandardMaterial({ color: '#6d7480', roughness: 0.85 }),
     hurdle: glowingStripes(MOVE_COLORS.jump, '#ffe6cc', 0.35),
     beam: glowingStripes(MOVE_COLORS.duck, '#2a2350', 0.5),
     orbJump: new THREE.MeshBasicMaterial({ color: hdr(MOVE_COLORS.jump, 2) }),

@@ -16,19 +16,19 @@ import type { Scenery, SceneryLook } from './World';
  * moonlight casts shadows, and nothing here casts them.
  */
 export const GLADE = {
-  zenith: '#0d0b2b',
-  sky: '#2c2468',
-  horizon: '#d49cb8',
-  fog: '#6f5fa6',
+  zenith: '#08122b',
+  sky: '#1a3563',
+  horizon: '#f0b892',
+  fog: '#5a7591',
   glow: '#ffb48a',
   moon: '#fff2da',
   grass: '#2e6461',
-  stone: '#a9a3cc',
+  stone: '#b8b2a6',
   rune: '#62f5d0',
   firefly: '#ffd27a',
   lantern: '#ffbe5c',
-  mushrooms: ['#5ff2ff', '#ff7ad9', '#9d8cff'],
-  flowers: ['#ffd27a', '#ff8fd0', '#7ff7e2', '#c3a8ff'],
+  mushrooms: ['#5ff2ff', '#ff8fb0', '#7ff7a8'],
+  flowers: ['#ffd27a', '#ff9ec4', '#7ff7e2', '#ffe9a8'],
 } as const;
 
 /** Moon direction: low over the horizon, a little left of the path. */
@@ -69,7 +69,7 @@ export class MoonlitGlade implements Scenery {
     // Cool twilight fill, plus soft moonlight from behind the camera so the
     // player's back and the obstacles' faces stay well lit. The warm moon
     // ahead shows up as the rim light on the characters instead.
-    this.root.add(new THREE.HemisphereLight('#c3bff2', '#2a4a50', 1.7));
+    this.root.add(new THREE.HemisphereLight('#c9d8f2', '#2a4a40', 1.7));
     this.sun = new THREE.DirectionalLight('#ffe0c8', 1.6);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(1024, 1024);
@@ -115,7 +115,7 @@ export class MoonlitGlade implements Scenery {
     track.receiveShadow = true;
     this.root.add(track);
 
-    const curbMat = this.track(new THREE.MeshLambertMaterial({ color: '#4c4777' }));
+    const curbMat = this.track(new THREE.MeshLambertMaterial({ color: '#3f4a5c' }));
     for (const side of [-1, 1]) {
       const curb = new THREE.Mesh(this.track(new THREE.BoxGeometry(0.34, 0.16, trackLen)), curbMat);
       curb.position.set(side * (RUNNER.trackWidth / 2 + 0.17), 0.08, -trackLen / 2 + 20);
@@ -192,9 +192,9 @@ export class MoonlitGlade implements Scenery {
   /** Layered ridges on the horizon, colors pre-blended into the haze (no fog, no lighting). */
   private addRidges(rand: () => number): void {
     const layers = [
-      { z: -330, base: 14, amp: 34, top: '#8c74b8', bottom: '#7a68ad' },
-      { z: -290, base: 6, amp: 24, top: '#5b4d96', bottom: '#4d4488' },
-      { z: -240, base: 0, amp: 14, top: '#38376f', bottom: '#2e3163' },
+      { z: -330, base: 14, amp: 34, top: '#7f93b3', bottom: '#6f86a8' },
+      { z: -290, base: 6, amp: 24, top: '#4c6286', bottom: '#41587c' },
+      { z: -240, base: 0, amp: 14, top: '#2c405a', bottom: '#243650' },
     ];
     layers.forEach((l, li) => {
       const seg = 140;
@@ -234,7 +234,7 @@ export class MoonlitGlade implements Scenery {
       parts.push(new THREE.BoxGeometry(9, h, 9).translate(x, h / 2, -292));
       parts.push(new THREE.BoxGeometry(4, 8, 9).translate(x - 2.5, h + 3, -292));
     }
-    const towers = new THREE.Mesh(this.track(mergeGeometries(parts)), this.track(new THREE.MeshBasicMaterial({ color: '#4f4588', fog: false })));
+    const towers = new THREE.Mesh(this.track(mergeGeometries(parts)), this.track(new THREE.MeshBasicMaterial({ color: '#465c80', fog: false })));
     parts.forEach((p) => p.dispose());
     towers.renderOrder = -1;
     this.root.add(towers);
@@ -314,8 +314,8 @@ export class MoonlitGlade implements Scenery {
     const roundCols: THREE.Color[] = [];
     const hidden = new THREE.Matrix4().makeScale(0, 0, 0);
     const pines = ['#2c6a66', '#317470', '#285c66', '#3a7468'];
-    const rounds = ['#4c9a8c', '#5a7fb0', '#56a084', '#7a7cc0'];
-    const fruit = ['#ff8fd0', '#7ff7e2', '#ffd27a'];
+    const rounds = ['#4c9a7c', '#4f8aa0', '#62a476', '#7aa86a'];
+    const fruit = ['#ffb070', '#7ff7e2', '#ffd27a'];
     for (let i = 0; i < count; i++) {
       const side = i % 2 ? 1 : -1;
       const x = side * (RUNNER.trackWidth / 2 + 4.5 + rand() ** 1.4 * 40);
@@ -342,7 +342,7 @@ export class MoonlitGlade implements Scenery {
         }
       }
     }
-    this.looping(trunkGeo, new THREE.MeshLambertMaterial({ color: '#3a2c3f' }), trunkMats);
+    this.looping(trunkGeo, new THREE.MeshLambertMaterial({ color: '#4a3528' }), trunkMats);
     this.looping(pineGeo, new THREE.MeshLambertMaterial({ flatShading: true }), pineMats, pineCols);
     this.looping(roundGeo, new THREE.MeshLambertMaterial({ flatShading: true }), roundMats, roundCols);
   }
@@ -359,7 +359,7 @@ export class MoonlitGlade implements Scenery {
       mats.push(new THREE.Matrix4().makeTranslation(side * x, 0, z));
       glows.push({ x: side * x, y: 1.38, z, color: GLADE.lantern, size: 1.5 });
     }
-    this.looping(postGeo, new THREE.MeshLambertMaterial({ color: '#2a2440' }), mats);
+    this.looping(postGeo, new THREE.MeshLambertMaterial({ color: '#2b2a2e' }), mats);
     const lampMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(GLADE.lantern).multiplyScalar(2.2) });
     this.looping(lampGeo, lampMat, mats.map((m) => m.clone()));
   }
@@ -392,7 +392,7 @@ export class MoonlitGlade implements Scenery {
         glows.push({ x, y: 0.38 * s, z, color, size: 0.5 * s });
       }
     }
-    this.looping(stemGeo, new THREE.MeshLambertMaterial({ color: '#d9d2f0' }), mats);
+    this.looping(stemGeo, new THREE.MeshLambertMaterial({ color: '#e6dccb' }), mats);
     this.looping(capGeo, new THREE.MeshBasicMaterial(), mats.map((m) => m.clone()), cols);
   }
 
@@ -451,11 +451,11 @@ export class MoonlitGlade implements Scenery {
 
   /** Soft banks of mist between the tree rows: depth layering at little cost. */
   private addMist(rand: () => number): void {
-    const count = 18;
+    const count = 12;
     const tex = this.track(mistTexture(rand));
     const mat = new THREE.MeshBasicMaterial({
       map: tex,
-      color: '#c9b8f0',
+      color: '#c8d8ee',
       transparent: true,
       opacity: 0.32,
       depthWrite: false,
@@ -491,7 +491,7 @@ function worldUV<G extends THREE.BufferGeometry>(geo: G, scale: number): G {
 
 function fireflyPoints(rand: () => number): GlowPoint[] {
   const out: GlowPoint[] = [];
-  for (let i = 0; i < 520; i++) {
+  for (let i = 0; i < 400; i++) {
     const side = rand() < 0.5 ? -1 : 1;
     // Mostly along the edges of the path and in the near forest; a few over it.
     const x = rand() < 0.12 ? (rand() - 0.5) * RUNNER.trackWidth : side * (RUNNER.trackWidth / 2 + rand() ** 1.5 * 26);
@@ -557,7 +557,7 @@ function skyMaterial(): THREE.ShaderMaterial {
         float wave = sin(az * 2.0 + uTime * 0.04) * 0.06 + sin(az * 5.3 - uTime * 0.07) * 0.025;
         float band = exp(-pow((h - 0.42 - wave) * 7.0, 2.0));
         float curtains = 0.55 + 0.45 * sin(az * 38.0 + sin(az * 4.0 + uTime * 0.15) * 4.0);
-        vec3 aurora = mix(vec3(0.25, 0.95, 0.75), vec3(0.55, 0.4, 1.0), smoothstep(0.35, 0.55, h + wave));
+        vec3 aurora = mix(vec3(0.25, 0.95, 0.7), vec3(0.3, 0.6, 1.0), smoothstep(0.35, 0.55, h + wave));
         col += aurora * band * curtains * 0.16 * smoothstep(0.15, 0.3, h);
 
         // Stars, twinkling, fading out toward the horizon and the moon.
@@ -602,7 +602,7 @@ function tex(c: HTMLCanvasElement, srgb = true): THREE.CanvasTexture {
 function trackTexture(): THREE.CanvasTexture {
   const [c, g] = canvas(256);
   const rand = mulberry32(5);
-  g.fillStyle = '#625b8a';
+  g.fillStyle = '#5e5a55';
   g.fillRect(0, 0, 256, 256);
   const rows = 8;
   for (let r = 0; r < rows; r++) {
@@ -612,11 +612,11 @@ function trackTexture(): THREE.CanvasTexture {
     while (x < 256) {
       const w = 34 + rand() * 30;
       const l = 68 + rand() * 12;
-      g.fillStyle = `hsl(${248 + rand() * 14}, ${14 + rand() * 8}%, ${l}%)`;
+      g.fillStyle = `hsl(${30 + rand() * 20}, ${8 + rand() * 8}%, ${l}%)`;
       roundRect(g, x + 2, y + 2, w - 4, hgt - 4, 5);
       // Speckle and a lighter top edge.
       for (let k = 0; k < 10; k++) {
-        g.fillStyle = rand() < 0.5 ? 'rgba(60,50,110,0.12)' : 'rgba(255,255,255,0.18)';
+        g.fillStyle = rand() < 0.5 ? 'rgba(70,60,50,0.12)' : 'rgba(255,255,255,0.18)';
         g.fillRect(x + 4 + rand() * (w - 10), y + 4 + rand() * (hgt - 10), 2 + rand() * 4, 2 + rand() * 3);
       }
       x += w;
@@ -664,10 +664,10 @@ function grassTexture(rand: () => number): THREE.CanvasTexture {
 function stoneTexture(): THREE.CanvasTexture {
   const [c, g] = canvas(128);
   const rand = mulberry32(9);
-  g.fillStyle = '#8f89b8';
+  g.fillStyle = '#8e939c';
   g.fillRect(0, 0, 128, 128);
   for (let i = 0; i < 500; i++) {
-    g.fillStyle = rand() < 0.5 ? 'rgba(50,45,90,0.16)' : 'rgba(255,255,255,0.12)';
+    g.fillStyle = rand() < 0.5 ? 'rgba(40,48,58,0.16)' : 'rgba(255,255,255,0.12)';
     g.fillRect(rand() * 128, rand() * 128, 2 + rand() * 6, 2 + rand() * 5);
   }
   // Moss at random spots.

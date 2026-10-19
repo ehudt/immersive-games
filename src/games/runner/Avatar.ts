@@ -17,7 +17,7 @@ const DEFAULT_COLORS: AvatarColors = {
   skin: '#f1c27d',
   shoes: '#f4f1ff',
   hair: '#3b2416',
-  pack: '#6a4fb0',
+  pack: '#2a7f86',
 };
 
 type Point = number | 'neck' | 'pelvis';

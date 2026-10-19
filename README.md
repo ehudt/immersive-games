@@ -21,7 +21,7 @@ here you really have to do it, on time.
 | Move        | What to do                              | Obstacle                 |
 | ----------- | --------------------------------------- | ------------------------ |
 | Jump        | Jump with both feet                     | Low glowing red hurdle   |
-| Duck        | Squat / bend down                       | High amber/indigo beam   |
+| Duck        | Squat / bend down                       | High amber/navy beam     |
 | Step L/R    | Step sideways (≈ one shoulder width)    | Violet crystals; mint arrow marks the safe lane |
 | Reach up    | Raise a hand above your head            | Golden stars             |
 
@@ -31,9 +31,9 @@ The default world is **Moonlit Glade**: twilight, slightly mysterious but
 friendly. The original **Sunny Meadow** is still there (Settings → World, or
 `?world=meadow`).
 
-- *Palette:* deep indigo sky fading to a rose-peach horizon, blue-green
-  forest, pale lavender flagstones. Accents: mint (runes, "go this way"),
-  lantern gold (fireflies, buttons), violet (crystals).
+- *Palette:* blue-hour navy sky fading to a warm peach horizon, teal-green
+  forest, pale warm-gray flagstones. Accents: mint (runes, "go this way"),
+  lantern gold (fireflies, buttons), violet only for the blocking crystals.
 - *Light:* cool sky fill plus soft light from behind the camera, so the
   player and obstacles are always lit from the front; the warm moon ahead
   shows up as a rim light on the avatar and Bolt.
@@ -72,8 +72,10 @@ Pose inference runs in a Web Worker, so a slow model lowers the *tracking*
 rate but never stalls rendering. Rendering uses at most 1.5× pixel ratio.
 With *Graphics: Auto*, if the frame rate stays below 50 fps the game steps
 down a quality ladder (`qualityLevels` in `src/core/perf/FrameStats.ts`):
-first resolution down to 1×, then bloom off and fewer fireflies, then 0.75×.
-*Low* starts without bloom and shadows. If tracking feels slow, try the
+bloom off and fewer fireflies first, then resolution down to 1×, then 0.75×
+(one step per two slow seconds, or per second when far below target).
+*Low* starts at 1× without bloom and shadows. Shaders for every obstacle kind
+are compiled before the run starts, so new obstacles don't cause stutters. If tracking feels slow, try the
 *Fast (lite)* model in Settings.
 
 The glade is cheap by construction: all looping props are instanced meshes

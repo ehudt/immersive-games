@@ -123,6 +123,7 @@ export class RunnerGame {
   }
 
   start(): void {
+    this.prewarm();
     if (this.opts.camera) this.beginCalibration();
     else this.beginCountdown();
     this.clock.connect(document);
@@ -310,16 +311,35 @@ export class RunnerGame {
     else this.renderer.render(this.scene, this.camera3d);
   }
 
+  /**
+   * Renders one of every obstacle once, through every render path, so their
+   * shaders compile now rather than with a stutter the first time each
+   * kind appears mid-run.
+   */
+  private prewarm(): void {
+    const samples = this.obstacles.samples();
+    this.scene.add(samples);
+    this.updateCamera(0);
+    if (this.composer) this.composer.render(0);
+    this.renderer.render(this.scene, this.camera3d);
+    this.scene.remove(samples);
+  }
+
   /** Bloom at quarter resolution: soft glows for emissive things, cheap enough for laptops. */
   private createComposer(b: NonNullable<Scenery['look']['bloom']>): EffectComposer {
     const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
     const composer = new EffectComposer(this.renderer, target);
+    // With no pass swapping buffers the scene always renders into the first
+    // (multisampled) target, so the unused second one needs no multisampling.
+    composer.renderTarget2.samples = 0;
     composer.addPass(new RenderPass(this.scene, this.camera3d));
     const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), b.strength, b.radius, b.threshold);
     const setSize = bloom.setSize.bind(bloom);
     bloom.setSize = (w, h) => setSize(Math.max(2, Math.round(w / 2)), Math.max(2, Math.round(h / 2)));
     composer.addPass(bloom);
-    composer.addPass(new OutputPass());
+    const output = new OutputPass();
+    output.needsSwap = false;
+    composer.addPass(output);
     return composer;
   }
 

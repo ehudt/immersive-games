@@ -21,6 +21,7 @@ describe('AdaptiveQuality', () => {
   it('builds a ladder without duplicate rungs', () => {
     const ladder = qualityLevels(1);
     expect(ladder[0]).toEqual({ pixelRatio: 1, bloom: true, detail: 1 });
+    expect(ladder[1].bloom).toBe(false); // bloom goes first
     expect(ladder.at(-1)).toEqual({ pixelRatio: 0.75, bloom: false, detail: 0.2 });
     expect(ladder).toHaveLength(4);
   });
@@ -28,10 +29,11 @@ describe('AdaptiveQuality', () => {
   it('steps down only after sustained low fps, and stops at the bottom', () => {
     const a = new AdaptiveQuality(qualityLevels(1.5), 'auto', 50);
     expect(a.level.pixelRatio).toBe(1.5);
-    expect(a.update(30)).toBeNull();
-    expect(a.update(60)).toBeNull(); // a single slow second is ignored
-    expect(a.update(30)).toBeNull();
-    expect(a.update(30)?.pixelRatio).toBe(1.25);
+    expect(a.update(45)).toBeNull();
+    expect(a.update(60)).toBeNull(); // a single slightly slow second is ignored
+    expect(a.update(45)).toBeNull();
+    expect(a.update(45)).toEqual({ pixelRatio: 1.5, bloom: false, detail: 0.6 });
+    expect(a.update(20)?.pixelRatio).toBe(1.25); // far below target: react at once
     for (let i = 0; i < 40; i++) a.update(20);
     expect(a.level).toEqual({ pixelRatio: 0.75, bloom: false, detail: 0.2 });
   });
