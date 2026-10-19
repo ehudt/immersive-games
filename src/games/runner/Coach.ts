@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Lane } from '../../core/input/BodyState';
 import { blobTexture } from './Avatar';
 import { RUNNER } from './config';
+import { addRim, glowTexture } from './fx';
 import type { Beat } from './Course';
 
 /**
@@ -16,6 +17,9 @@ export class Coach {
   private armR = new THREE.Group();
   private eyes: THREE.Mesh[] = [];
   private flame: THREE.Mesh;
+  private thrusterGlow: THREE.Sprite;
+  private bulb: THREE.Mesh;
+  private bulbGlow: THREE.Sprite;
   private shadow: THREE.Mesh;
   private lane = 0;
   private t = 0;
@@ -25,17 +29,28 @@ export class Coach {
   constructor() {
     const d = <T extends { dispose(): void }>(x: T) => (this.disposables.push(x), x);
     const sph = d(new THREE.SphereGeometry(1, 24, 16));
-    const white = d(new THREE.MeshStandardMaterial({ color: '#f6f7fb', roughness: 0.35, metalness: 0.1 }));
-    const orange = d(new THREE.MeshStandardMaterial({ color: '#ff8a1f', roughness: 0.4 }));
+    const white = d(addRim(new THREE.MeshStandardMaterial({ color: '#f2f0ff', roughness: 0.35, metalness: 0.1 }), 0.4));
+    const orange = d(addRim(new THREE.MeshStandardMaterial({ color: '#ff8a1f', roughness: 0.4 }), 0.4));
     const visor = d(new THREE.MeshStandardMaterial({ color: '#141a2e', roughness: 0.15, metalness: 0.4 }));
-    const glow = d(new THREE.MeshBasicMaterial({ color: '#5ff3ff' }));
+    const mint = new THREE.Color('#5ff7e0');
+    const glow = d(new THREE.MeshBasicMaterial({ color: mint.clone().multiplyScalar(2) }));
+    const blush = d(new THREE.MeshBasicMaterial({ color: '#ff8fb8', transparent: true, opacity: 0.7 }));
+    const haloTex = d(glowTexture());
+    const halo = (color: THREE.Color, opacity: number) =>
+      d(new THREE.SpriteMaterial({ map: haloTex, color, opacity, blending: THREE.AdditiveBlending, depthWrite: false }));
 
+    const cheeks: THREE.Mesh[] = [];
     const body = new THREE.Mesh(sph, white);
     body.scale.set(0.42, 0.38, 0.4);
     body.castShadow = true;
     const belly = new THREE.Mesh(sph, orange);
     belly.scale.set(0.3, 0.12, 0.3);
     belly.position.y = -0.2;
+    // A glowing belt light around the middle.
+    const belt = new THREE.Mesh(d(new THREE.TorusGeometry(0.405, 0.025, 6, 40)), glow);
+    belt.rotation.x = Math.PI / 2;
+    belt.position.y = 0.02;
+    belt.scale.set(1, 0.97, 1);
     const head = new THREE.Mesh(sph, white);
     head.scale.set(0.34, 0.28, 0.32);
     head.position.y = 0.5;
@@ -48,12 +63,20 @@ export class Coach {
       eye.scale.set(0.05, 0.07, 0.02);
       eye.position.set(s * 0.1, 0.52, 0.345);
       this.eyes.push(eye);
+      const cheek = new THREE.Mesh(sph, blush);
+      cheek.scale.set(0.04, 0.022, 0.01);
+      cheek.position.set(s * 0.19, 0.43, 0.33);
+      cheek.rotation.y = s * 0.5;
+      cheeks.push(cheek);
     }
     const antenna = new THREE.Mesh(d(new THREE.CylinderGeometry(0.015, 0.015, 0.25)), white);
     antenna.position.y = 0.88;
-    const bulb = new THREE.Mesh(sph, d(new THREE.MeshBasicMaterial({ color: '#ff5470' })));
-    bulb.scale.setScalar(0.06);
-    bulb.position.y = 1.02;
+    this.bulb = new THREE.Mesh(sph, d(new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffd27a').multiplyScalar(1.2) })));
+    this.bulb.scale.setScalar(0.065);
+    this.bulb.position.y = 1.02;
+    this.bulbGlow = new THREE.Sprite(halo(new THREE.Color('#ffd27a'), 0.55));
+    this.bulbGlow.scale.setScalar(0.5);
+    this.bulbGlow.position.y = 1.02;
 
     for (const [arm, s] of [[this.armL, -1], [this.armR, 1]] as const) {
       const upper = new THREE.Mesh(d(new THREE.CapsuleGeometry(0.06, 0.3, 4, 10)), orange);
@@ -66,14 +89,26 @@ export class Coach {
       arm.rotation.z = s * 0.3;
     }
 
+    // Thruster: a soft cone of mint light with a glow underneath.
     this.flame = new THREE.Mesh(
-      d(new THREE.ConeGeometry(0.16, 0.45, 12)),
-      d(new THREE.MeshBasicMaterial({ color: '#ffb347', transparent: true, opacity: 0.85 })),
+      d(new THREE.ConeGeometry(0.15, 0.45, 16, 1, true)),
+      d(
+        new THREE.MeshBasicMaterial({
+          color: mint.clone().multiplyScalar(1.4),
+          transparent: true,
+          opacity: 0.75,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      ),
     );
     this.flame.rotation.x = Math.PI;
     this.flame.position.y = -0.55;
+    this.thrusterGlow = new THREE.Sprite(halo(mint, 0.8));
+    this.thrusterGlow.position.y = -0.5;
+    this.thrusterGlow.scale.setScalar(0.9);
 
-    this.bot.add(body, belly, head, face, ...this.eyes, antenna, bulb, this.armL, this.armR, this.flame);
+    this.bot.add(body, belly, belt, head, face, ...this.eyes, ...cheeks, antenna, this.bulb, this.bulbGlow, this.armL, this.armR, this.flame, this.thrusterGlow);
     this.bot.scale.setScalar(1.1);
 
     this.shadow = new THREE.Mesh(
@@ -127,7 +162,12 @@ export class Coach {
     const blink = this.t % 3.2 < 0.12 ? 0.15 : 1;
     for (const e of this.eyes) e.scale.y = 0.07 * blink;
 
-    this.flame.scale.set(1, 0.8 + Math.random() * 0.4 + hop * 0.8, 1);
+    const flicker = 0.8 + Math.random() * 0.4;
+    this.flame.scale.set(1, flicker + hop * 0.8, 1);
+    this.thrusterGlow.scale.setScalar(0.8 + flicker * 0.2 + hop * 0.4);
+    const pulse = 0.5 + 0.5 * Math.sin(this.t * 4);
+    this.bulb.scale.setScalar(0.06 + pulse * 0.012);
+    this.bulbGlow.scale.setScalar(0.3 + pulse * 0.12);
 
     if (this.spin > 0) {
       this.spin = Math.max(0, this.spin - dt * 1.6);

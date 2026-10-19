@@ -1,6 +1,10 @@
 import * as THREE from 'three';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { Sfx } from '../../core/audio/Sfx';
-import { AdaptiveResolution, FrameStats } from '../../core/perf/FrameStats';
+import { AdaptiveQuality, FrameStats, qualityLevels, type QualityLevel, type QualityPreset } from '../../core/perf/FrameStats';
 import type { BodySource, BodyState } from '../../core/input/BodyState';
 import type { CameraBody } from '../../core/input/CameraBody';
 import { CameraPreview } from '../../core/ui/CameraPreview';
@@ -10,8 +14,12 @@ import { RUNNER } from './config';
 import { buildCourse, distanceAt, speedAt, type Beat, type Course } from './Course';
 import { Hud } from './Hud';
 import { Judge, type Verdict } from './Judge';
+import { rimUniforms } from './fx';
+import { MoonlitGlade } from './Glade';
 import { Obstacles } from './Obstacles';
-import { MeadowWorld } from './World';
+import { MeadowWorld, type Scenery } from './World';
+
+export type WorldName = 'glade' | 'meadow';
 
 export interface RunnerOptions {
   body: BodySource;
@@ -19,6 +27,8 @@ export interface RunnerOptions {
   camera?: CameraBody;
   seed?: number;
   debug?: boolean;
+  world?: WorldName;
+  quality?: QualityPreset;
   onExit: () => void;
 }
 
@@ -33,7 +43,8 @@ export class RunnerGame {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera3d = new THREE.PerspectiveCamera(62, 1, 0.1, 900);
-  private world = new MeadowWorld();
+  private world: Scenery;
+  private composer: EffectComposer | null = null;
   private avatar = new Avatar();
   private coach = new Coach();
   private obstacles!: Obstacles;
@@ -59,7 +70,7 @@ export class RunnerGame {
   private energy = 0;
   private debug: boolean;
   private frameStats = new FrameStats();
-  private resolution: AdaptiveResolution;
+  private quality: AdaptiveQuality;
   private drawnPoseFrame: unknown = null;
   private resumeAfterCountdown = false;
   private disposed = false;
@@ -72,21 +83,29 @@ export class RunnerGame {
     private opts: RunnerOptions,
   ) {
     this.debug = !!opts.debug;
+    this.world = opts.world === 'meadow' ? new MeadowWorld() : new MoonlitGlade();
+    const look = this.world.look;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    // Sharp enough on high-DPI screens without paying for 4× the pixels; lowered
-    // further automatically if the frame rate drops.
-    this.resolution = new AdaptiveResolution(Math.min(devicePixelRatio, 1.5));
-    this.renderer.setPixelRatio(this.resolution.pixelRatio);
-    this.renderer.shadowMap.enabled = true;
+    // Sharp enough on high-DPI screens without paying for 4× the pixels; bloom,
+    // particles and then resolution are lowered automatically if the frame rate drops.
+    this.quality = new AdaptiveQuality(qualityLevels(Math.min(devicePixelRatio, 1.5)), opts.quality ?? 'auto');
+    this.renderer.setPixelRatio(this.quality.level.pixelRatio);
+    this.renderer.shadowMap.enabled = opts.quality !== 'low';
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = look.exposure;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.domElement.className = 'game-canvas';
+    this.renderer.info.autoReset = false; // count draw calls over all passes of a frame
     container.append(this.renderer.domElement);
+    container.classList.add(look.stageClass);
 
     this.scene.background = this.world.horizon;
-    this.scene.fog = new THREE.Fog(this.world.horizon, 60, 190);
+    this.scene.fog = new THREE.Fog(this.world.horizon, look.fog.near, look.fog.far);
     this.scene.add(this.world.root, this.avatar.root, this.coach.root);
+    rimUniforms.rimColor.value.set(look.rim).multiplyScalar(look.rimStrength);
+    if (look.bloom && this.quality.level.bloom) this.composer = this.createComposer(look.bloom);
+    this.world.setDetail(this.quality.level.detail);
 
     this.course = buildCourse(opts.seed ?? 1);
     this.resetRun();
@@ -119,6 +138,9 @@ export class RunnerGame {
     window.removeEventListener('resize', this.onResize);
     window.removeEventListener('keydown', this.onKey);
     this.world.dispose();
+    for (const pass of this.composer?.passes ?? []) pass.dispose();
+    this.composer?.dispose();
+    this.container.classList.remove(this.world.look.stageClass);
     this.avatar.dispose();
     this.coach.dispose();
     this.obstacles.dispose();
@@ -223,11 +245,8 @@ export class RunnerGame {
     this.clock.update(timestamp);
     const dt = Math.min(this.clock.getDelta(), 0.1);
     if (this.frameStats.tick(dt) && this.phase === 'playing') {
-      const pr = this.resolution.update(this.frameStats.fps);
-      if (pr !== null) {
-        this.renderer.setPixelRatio(pr);
-        this.onResize();
-      }
+      const level = this.quality.update(this.frameStats.fps);
+      if (level) this.applyQuality(level);
     }
     const body = this.opts.body;
     body.update(dt);
@@ -286,7 +305,28 @@ export class RunnerGame {
 
     this.updateCamera(dt);
     this.updateOverlay(dt, s);
-    this.renderer.render(this.scene, this.camera3d);
+    this.renderer.info.reset();
+    if (this.composer && this.quality.level.bloom) this.composer.render(dt);
+    else this.renderer.render(this.scene, this.camera3d);
+  }
+
+  /** Bloom at quarter resolution: soft glows for emissive things, cheap enough for laptops. */
+  private createComposer(b: NonNullable<Scenery['look']['bloom']>): EffectComposer {
+    const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
+    const composer = new EffectComposer(this.renderer, target);
+    composer.addPass(new RenderPass(this.scene, this.camera3d));
+    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), b.strength, b.radius, b.threshold);
+    const setSize = bloom.setSize.bind(bloom);
+    bloom.setSize = (w, h) => setSize(Math.max(2, Math.round(w / 2)), Math.max(2, Math.round(h / 2)));
+    composer.addPass(bloom);
+    composer.addPass(new OutputPass());
+    return composer;
+  }
+
+  private applyQuality(level: QualityLevel): void {
+    this.renderer.setPixelRatio(level.pixelRatio);
+    this.world.setDetail(level.detail);
+    this.onResize();
   }
 
   private updateCalibration(): void {
@@ -411,7 +451,8 @@ export class RunnerGame {
         `tracked ${s.tracked}  lane ${s.lane}  lateral ${s.lateral.toFixed(2)}`,
         `jump ${s.jumping} (${s.jumpHeight.toFixed(2)}m)  duck ${s.ducking} (${s.duckDepth.toFixed(2)})  hands ${s.handsUp}`,
         `activity ${s.activity.toFixed(2)}`,
-        `render ${this.frameStats.fps.toFixed(0)} fps  worst ${this.frameStats.worstMs.toFixed(0)} ms  px ${this.resolution.pixelRatio}`,
+        `render ${this.frameStats.fps.toFixed(0)} fps  worst ${this.frameStats.worstMs.toFixed(0)} ms  px ${this.quality.level.pixelRatio}` +
+          `  bloom ${this.composer && this.quality.level.bloom ? 'on' : 'off'}  detail ${this.quality.level.detail}  draws ${this.renderer.info.render.calls}`,
       ];
       if (this.opts.camera) {
         const a = this.opts.camera.analyzer;
@@ -427,6 +468,11 @@ export class RunnerGame {
     const w = this.container.clientWidth;
     const h = this.container.clientHeight;
     this.renderer.setSize(w, h);
+    if (this.composer) {
+      this.composer.setPixelRatio(this.renderer.getPixelRatio());
+      this.composer.setSize(w, h);
+    }
+    this.world.setViewHeight(h * this.renderer.getPixelRatio());
     this.camera3d.aspect = w / h;
     // Keep the three lanes in view on portrait screens.
     this.camera3d.fov = w / h < 1 ? 80 : 62;

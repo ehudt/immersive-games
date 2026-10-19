@@ -76,9 +76,9 @@ interface Block {
  * up and speed up, then cool down.
  */
 export const WARMUP_BLOCKS: Block[] = [
-  { title: 'Side steps', subtitle: 'Step left and right to dodge the crates', lead: 6, spacing: 3, beats: ['lane:-1', 'lane:0', 'lane:1', 'lane:0', 'lane:-1', 'lane:1', 'lane:0'] },
+  { title: 'Side steps', subtitle: 'Step left and right, around the crystals', lead: 6, spacing: 3, beats: ['lane:-1', 'lane:0', 'lane:1', 'lane:0', 'lane:-1', 'lane:1', 'lane:0'] },
   { title: 'Jump!', subtitle: 'Jump over the hurdles', lead: 3.5, spacing: 2.6, beats: ['jump', 'jump', 'jump', 'jump', 'jump', 'jump'] },
-  { title: 'Duck!', subtitle: 'Squat down under the bars', lead: 3.5, spacing: 2.8, beats: ['duck', 'duck', 'duck', 'duck', 'duck'] },
+  { title: 'Duck!', subtitle: 'Squat down under the beams', lead: 3.5, spacing: 2.8, beats: ['duck', 'duck', 'duck', 'duck', 'duck'] },
   { title: 'Reach up!', subtitle: 'Raise your hands to grab the stars', lead: 3.5, spacing: 2.6, beats: ['reach', 'reach', 'reach', 'reach', 'reach'] },
   { title: 'Mix it up', subtitle: 'Watch the signs!', lead: 3.5, spacing: 2.3, beats: 12 },
   { title: 'Speed round', subtitle: 'Faster, faster!', lead: 3.5, spacing: 1.8, beats: 14 },

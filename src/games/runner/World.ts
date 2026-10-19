@@ -1,6 +1,21 @@
 import * as THREE from 'three';
 import { RUNNER } from './config';
 import { mulberry32 } from './Course';
+import { LOOP, wrapZ } from './fx';
+
+/** How a scenery wants the shared renderer, characters and post-processing set up. */
+export interface SceneryLook {
+  /** Distance fog range, meters. */
+  fog: { near: number; far: number };
+  exposure: number;
+  /** Fresnel rim light on the avatar and the coach. */
+  rim: THREE.ColorRepresentation;
+  rimStrength: number;
+  /** Bloom settings, or null for none. Only used on capable machines. */
+  bloom: { strength: number; radius: number; threshold: number } | null;
+  /** CSS class added to the game stage (vignette, HUD accents…). */
+  stageClass: string;
+}
 
 /**
  * The scenery the player runs through. A world only needs to scroll with the
@@ -11,11 +26,14 @@ export interface Scenery {
   readonly root: THREE.Object3D;
   /** Fog / sky color, used to match the renderer background. */
   readonly horizon: THREE.Color;
+  readonly look: SceneryLook;
   update(distance: number, dt: number, focus: THREE.Vector3): void;
+  /** 0..1 — scales optional effects (particles, mist) for slower machines. */
+  setDetail(detail: number): void;
+  /** Drawing-buffer height in pixels, for effects sized on screen. */
+  setViewHeight(px: number): void;
   dispose(): void;
 }
-
-const LOOP = 220; // meters of scenery before it repeats
 
 interface Clouds {
   mesh: THREE.InstancedMesh;
@@ -27,6 +45,14 @@ interface Clouds {
 export class MeadowWorld implements Scenery {
   readonly root = new THREE.Group();
   readonly horizon = new THREE.Color('#bfe3ff');
+  readonly look: SceneryLook = {
+    fog: { near: 60, far: 190 },
+    exposure: 1,
+    rim: '#ffffff',
+    rimStrength: 0.25,
+    bloom: null,
+    stageClass: 'theme-meadow',
+  };
   readonly sun: THREE.DirectionalLight;
   private trackTex: THREE.CanvasTexture;
   private grassTex: THREE.CanvasTexture;
@@ -150,6 +176,9 @@ export class MeadowWorld implements Scenery {
     this.sun.position.set(focus.x - 8, 16, focus.z + 6);
     this.sun.target.position.set(focus.x, 0, focus.z - 4);
   }
+
+  setDetail(): void {}
+  setViewHeight(): void {}
 
   dispose(): void {
     for (const d of this.disposables) d.dispose();
@@ -295,12 +324,6 @@ export class MeadowWorld implements Scenery {
     this.root.add(mesh);
     return { mesh, puffs, cloudX };
   }
-}
-
-/** Keeps a looping object between LOOP meters ahead and a bit behind the camera. */
-function wrapZ(z: number): number {
-  const behind = 20;
-  return ((((z - behind) % LOOP) + LOOP) % LOOP) - LOOP + behind;
 }
 
 function trackTexture(): THREE.CanvasTexture {
