@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AdaptiveResolution, FrameStats } from './FrameStats';
+import { AdaptiveQuality, FrameStats, qualityLevels } from './FrameStats';
 
 describe('FrameStats', () => {
   it('reports fps and the worst frame once per second', () => {
@@ -17,14 +17,33 @@ describe('FrameStats', () => {
   });
 });
 
-describe('AdaptiveResolution', () => {
-  it('steps down only after sustained low fps, never below the minimum', () => {
-    const a = new AdaptiveResolution(1.5, 0.75, 50);
-    expect(a.update(30)).toBeNull();
-    expect(a.update(60)).toBeNull(); // a single slow second is ignored
-    expect(a.update(30)).toBeNull();
-    expect(a.update(30)).toBe(1.25);
-    for (let i = 0; i < 20; i++) a.update(20);
-    expect(a.pixelRatio).toBe(0.75);
+describe('AdaptiveQuality', () => {
+  it('builds a ladder without duplicate rungs', () => {
+    const ladder = qualityLevels(1);
+    expect(ladder[0]).toEqual({ pixelRatio: 1, bloom: true, detail: 1 });
+    expect(ladder[1].bloom).toBe(false); // bloom goes first
+    expect(ladder.at(-1)).toEqual({ pixelRatio: 0.75, bloom: false, detail: 0.2 });
+    expect(ladder).toHaveLength(4);
+  });
+
+  it('steps down only after sustained low fps, and stops at the bottom', () => {
+    const a = new AdaptiveQuality(qualityLevels(1.5), 'auto', 50);
+    expect(a.level.pixelRatio).toBe(1.5);
+    expect(a.update(45)).toBeNull();
+    expect(a.update(60)).toBeNull(); // a single slightly slow second is ignored
+    expect(a.update(45)).toBeNull();
+    expect(a.update(45)).toEqual({ pixelRatio: 1.5, bloom: false, detail: 0.6 });
+    expect(a.update(20)?.pixelRatio).toBe(1.25); // far below target: react at once
+    for (let i = 0; i < 40; i++) a.update(20);
+    expect(a.level).toEqual({ pixelRatio: 0.75, bloom: false, detail: 0.2 });
+  });
+
+  it('honors fixed presets', () => {
+    const low = new AdaptiveQuality(qualityLevels(1.5), 'low');
+    expect(low.level.bloom).toBe(false);
+    expect(low.level.pixelRatio).toBe(1);
+    const high = new AdaptiveQuality(qualityLevels(1.5), 'high');
+    for (let i = 0; i < 10; i++) expect(high.update(10)).toBeNull();
+    expect(high.level.bloom).toBe(true);
   });
 });

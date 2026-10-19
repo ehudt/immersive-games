@@ -1,7 +1,9 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Lane } from '../../core/input/BodyState';
 import { RUNNER } from './config';
 import type { Beat } from './Course';
+import { glowTexture } from './fx';
 
 export type Outcome = 'pending' | 'perfect' | 'good' | 'miss';
 
@@ -29,6 +31,7 @@ export class Obstacles {
   constructor(private beats: Beat[]) {}
 
   update(distance: number, dt: number): void {
+    this.assets.update(dt);
     // Spawn everything that came into view.
     while (this.next < this.beats.length && this.beats[this.next].distance - distance < RUNNER.viewAhead) {
       const beat = this.beats[this.next++];
@@ -96,25 +99,75 @@ export class Obstacles {
     }
   }
 
+  /** One obstacle of every kind, for compiling their shaders before they are needed. */
+  samples(): THREE.Group {
+    const g = new THREE.Group();
+    const kinds = ['jump', 'duck', 'lane', 'reach'] as const;
+    kinds.forEach((kind, i) => {
+      const { obj } = this.assets.build({ id: -1 - i, time: 0, distance: 0, kind, lane: 0 });
+      obj.position.z = -6 - i * 3;
+      g.add(obj);
+    });
+    return g;
+  }
+
   dispose(): void {
     this.assets.dispose();
   }
 }
 
-/** Shared geometries/materials and per-kind builders. */
+/** Glow colors per move — matched by the HUD cue colors. */
+export const MOVE_COLORS = {
+  jump: '#ff4632',
+  duck: '#ffb21f',
+  block: '#b98cff',
+  safe: '#3ff0b4',
+  reach: '#ffd84a',
+} as const;
+
+/**
+ * Shared geometries/materials and per-kind builders. The visual language:
+ * weathered stone posts carry glowing barriers — a low coral bar to jump, a
+ * high amber beam to duck under — violet crystals block lanes, a mint arrow
+ * marks the safe lane, and golden stars hang up high. Each also casts a soft
+ * glow on the path, so it reads from far away and in any light.
+ */
 class ObstacleAssets {
   private box = new THREE.BoxGeometry(1, 1, 1);
-  private cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 12);
+  private pillar = new THREE.CylinderGeometry(0.11, 0.14, 1, 6).translate(0, 0.5, 0);
+  private orb = new THREE.IcosahedronGeometry(0.11, 1);
+  private quad = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  private crystals = crystalCluster();
   private star: THREE.ExtrudeGeometry;
   private arrow: THREE.ShapeGeometry;
+  private glow = glowTexture();
   private mats = {
-    post: new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.5 }),
-    hurdle: new THREE.MeshStandardMaterial({ map: stripes('#ff3b3b', '#ffffff'), roughness: 0.5 }),
-    beam: new THREE.MeshStandardMaterial({ map: stripes('#ffcc00', '#222222'), roughness: 0.5 }),
-    crate: new THREE.MeshStandardMaterial({ map: crateTexture(), roughness: 0.8 }),
-    star: new THREE.MeshStandardMaterial({ color: '#ffd84a', emissive: '#ffb300', emissiveIntensity: 0.6, metalness: 0.3, roughness: 0.3 }),
-    arrow: new THREE.MeshBasicMaterial({ color: '#4ef0a0', transparent: true, opacity: 0.85 }),
+    stone: new THREE.MeshStandardMaterial({ color: '#6d7480', roughness: 0.85 }),
+    hurdle: glowingStripes(MOVE_COLORS.jump, '#ffe6cc', 0.35),
+    beam: glowingStripes(MOVE_COLORS.duck, '#2a2350', 0.5),
+    orbJump: new THREE.MeshBasicMaterial({ color: hdr(MOVE_COLORS.jump, 2) }),
+    orbDuck: new THREE.MeshBasicMaterial({ color: hdr(MOVE_COLORS.duck, 2) }),
+    crystal: new THREE.MeshStandardMaterial({
+      color: '#c9a8ff',
+      emissive: '#7a3cff',
+      emissiveIntensity: 0.9,
+      roughness: 0.25,
+      flatShading: true,
+    }),
+    star: new THREE.MeshStandardMaterial({ color: '#ffd84a', emissive: '#ffb300', emissiveIntensity: 1.1, metalness: 0.3, roughness: 0.3 }),
+    arrow: new THREE.MeshBasicMaterial({ color: hdr(MOVE_COLORS.safe, 1.1), transparent: true, opacity: 0.9, depthWrite: false }),
+    glowJump: groundGlow(this.glow, MOVE_COLORS.jump),
+    glowDuck: groundGlow(this.glow, MOVE_COLORS.duck),
+    glowBlock: groundGlow(this.glow, MOVE_COLORS.block),
+    glowSafe: groundGlow(this.glow, MOVE_COLORS.safe),
+    halo: new THREE.SpriteMaterial({
+      map: this.glow,
+      color: hdr(MOVE_COLORS.reach, 1.2),
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    }),
   };
+  private time = 0;
 
   constructor() {
     const shape = new THREE.Shape();
@@ -140,67 +193,86 @@ class ObstacleAssets {
     this.arrow = new THREE.ShapeGeometry(a);
   }
 
+  /** Shared animation: pulsing safe-lane arrows. */
+  update(dt: number): void {
+    this.time += dt;
+    this.mats.arrow.opacity = 0.88 + 0.12 * Math.sin(this.time * 7);
+  }
+
   build(beat: Beat): { obj: THREE.Group; parts: THREE.Object3D[] } {
     const g = new THREE.Group();
     const parts: THREE.Object3D[] = [];
     const half = RUNNER.trackWidth / 2;
-    const mesh = (geo: THREE.BufferGeometry, mat: THREE.Material) => {
+    const mesh = (geo: THREE.BufferGeometry, mat: THREE.Material, shadow = true) => {
       const m = new THREE.Mesh(geo, mat);
-      m.castShadow = true;
-      m.receiveShadow = true;
+      m.castShadow = shadow;
       return m;
     };
-    const posts = (height: number) => {
+    const glowOnGround = (mat: THREE.Material, x: number, w: number, d: number) => {
+      const m = mesh(this.quad, mat, false);
+      m.scale.set(w, 1, d);
+      m.position.set(x, 0.04, 0);
+      m.renderOrder = 1;
+      g.add(m);
+    };
+    const posts = (height: number, orbMat: THREE.Material) => {
       for (const side of [-1, 1]) {
-        const p = mesh(this.cyl, this.mats.post);
-        p.scale.set(0.16, height, 0.16);
-        p.position.set(side * (half - 0.1), height / 2, 0);
-        g.add(p);
+        const p = mesh(this.pillar, this.mats.stone);
+        p.scale.set(1, height, 1);
+        p.position.set(side * (half - 0.1), 0, 0);
+        const orb = mesh(this.orb, orbMat, false);
+        orb.position.set(side * (half - 0.1), height + 0.1, 0);
+        g.add(p, orb);
       }
     };
 
     switch (beat.kind) {
       case 'jump': {
-        posts(0.7);
+        posts(0.75, this.mats.orbJump);
         const bar = mesh(this.box, this.mats.hurdle);
         bar.scale.set(RUNNER.trackWidth, 0.22, 0.12);
         bar.position.y = 0.55;
         g.add(bar);
         parts.push(bar);
+        glowOnGround(this.mats.glowJump, 0, RUNNER.trackWidth + 1.5, 2.2);
         break;
       }
       case 'duck': {
-        posts(1.75);
+        posts(1.85, this.mats.orbDuck);
         const beam = mesh(this.box, this.mats.beam);
         beam.scale.set(RUNNER.trackWidth, 0.4, 0.3);
         beam.position.y = 1.5;
         g.add(beam);
         parts.push(beam);
+        glowOnGround(this.mats.glowDuck, 0, RUNNER.trackWidth + 1.5, 2.2);
         break;
       }
       case 'lane': {
         for (const lane of [-1, 0, 1] as Lane[]) {
+          const x = lane * RUNNER.laneWidth;
           if (lane === beat.lane) {
             // Guide arrow on the ground in the safe lane.
-            const arrow = new THREE.Mesh(this.arrow, this.mats.arrow);
+            const arrow = mesh(this.arrow, this.mats.arrow, false);
             arrow.rotation.x = -Math.PI / 2;
-            arrow.position.set(lane * RUNNER.laneWidth, 0.03, 2.5);
+            arrow.scale.setScalar(1.15);
+            arrow.position.set(x, 0.05, 2.5);
+            arrow.renderOrder = 2;
             g.add(arrow);
+            const glow = mesh(this.quad, this.mats.glowSafe, false);
+            glow.scale.set(1.8, 1, 3.2);
+            glow.position.set(x, 0.04, 2.3);
+            glow.renderOrder = 1;
+            g.add(glow);
             continue;
           }
           const stack = new THREE.Group();
           stack.userData.lane = lane;
-          const c1 = mesh(this.box, this.mats.crate);
-          c1.scale.set(1.3, 1.1, 1.1);
-          c1.position.y = 0.55;
-          const c2 = mesh(this.box, this.mats.crate);
-          c2.scale.set(0.9, 0.8, 0.9);
-          c2.position.set(0.1, 1.5, 0);
-          c2.rotation.y = 0.3;
-          stack.add(c1, c2);
-          stack.position.x = lane * RUNNER.laneWidth;
+          stack.add(mesh(this.crystals, this.mats.crystal));
+          stack.rotation.y = lane * 0.7 + beat.id;
+          stack.position.x = x;
           g.add(stack);
           parts.push(stack);
+          glowOnGround(this.mats.glowBlock, x, 2.2, 2.2);
         }
         break;
       }
@@ -209,6 +281,9 @@ class ObstacleAssets {
           const s = mesh(this.star, this.mats.star);
           s.position.set(lane * RUNNER.laneWidth, 2.35, 0);
           s.scale.setScalar(1.1);
+          const halo = new THREE.Sprite(this.mats.halo);
+          halo.scale.setScalar(1.6);
+          s.add(halo);
           g.add(s);
           parts.push(s);
         }
@@ -219,15 +294,58 @@ class ObstacleAssets {
   }
 
   dispose(): void {
-    this.box.dispose();
-    this.cyl.dispose();
-    this.star.dispose();
-    this.arrow.dispose();
+    for (const geo of [this.box, this.pillar, this.orb, this.quad, this.crystals, this.star, this.arrow]) geo.dispose();
+    this.glow.dispose();
     for (const m of Object.values(this.mats)) {
       (m as THREE.MeshStandardMaterial).map?.dispose();
       m.dispose();
     }
   }
+}
+
+function hdr(color: string, k: number): THREE.Color {
+  return new THREE.Color(color).multiplyScalar(k);
+}
+
+/** A striped bar that glows with its own stripes, so it stays bright at night. */
+function glowingStripes(a: string, b: string, glow: number): THREE.MeshStandardMaterial {
+  const map = stripes(a, b);
+  return new THREE.MeshStandardMaterial({ map, emissive: '#ffffff', emissiveMap: map, emissiveIntensity: glow, roughness: 0.5 });
+}
+
+/** Soft additive light pooled on the path under an obstacle. */
+function groundGlow(map: THREE.Texture, color: string): THREE.MeshBasicMaterial {
+  return new THREE.MeshBasicMaterial({
+    map,
+    color: hdr(color, 0.9),
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+}
+
+/** A cluster of tall crystals (one merged geometry), about 1.4 m wide and 2 m tall. */
+function crystalCluster(): THREE.BufferGeometry {
+  const parts: THREE.BufferGeometry[] = [];
+  const spec = [
+    [0, 0, 0.36, 1.05, 0, 0],
+    [-0.38, 0.1, 0.26, 0.75, 0.35, 0.1],
+    [0.4, -0.05, 0.28, 0.8, -0.4, -0.05],
+    [0.1, 0.35, 0.22, 0.6, 0.15, 0.4],
+    [-0.15, -0.35, 0.22, 0.55, -0.1, -0.45],
+  ];
+  for (const [x, z, r, h, tz, tx] of spec) {
+    parts.push(
+      new THREE.OctahedronGeometry(1, 0)
+        .scale(r, h, r)
+        .rotateZ(tz)
+        .rotateX(tx)
+        .translate(x, h * 0.8, z),
+    );
+  }
+  const geo = mergeGeometries(parts);
+  parts.forEach((p) => p.dispose());
+  return geo;
 }
 
 function stripes(a: string, b: string): THREE.CanvasTexture {
@@ -244,26 +362,6 @@ function stripes(a: string, b: string): THREE.CanvasTexture {
     g.lineTo(i * 16 + 16, 32);
     g.fill();
   }
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
-
-function crateTexture(): THREE.CanvasTexture {
-  const c = document.createElement('canvas');
-  c.width = c.height = 128;
-  const g = c.getContext('2d')!;
-  g.fillStyle = '#c8873f';
-  g.fillRect(0, 0, 128, 128);
-  g.strokeStyle = '#8a5523';
-  g.lineWidth = 12;
-  g.strokeRect(6, 6, 116, 116);
-  g.beginPath();
-  g.moveTo(10, 10);
-  g.lineTo(118, 118);
-  g.moveTo(118, 10);
-  g.lineTo(10, 118);
-  g.stroke();
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;

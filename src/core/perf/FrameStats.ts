@@ -22,25 +22,70 @@ export class FrameStats {
   }
 }
 
+export type QualityPreset = 'auto' | 'high' | 'low';
+
+/** One rung of the quality ladder. */
+export interface QualityLevel {
+  pixelRatio: number;
+  /** Post-processing bloom. */
+  bloom: boolean;
+  /** 0..1, scales particles and other optional scenery effects. */
+  detail: number;
+}
+
 /**
- * Lowers the render resolution step by step while the frame rate stays low,
- * so slower machines trade sharpness for smoothness automatically.
+ * The ladder from best to cheapest. Bloom (the most expensive effect) goes
+ * first, then resolution down to 1× and particles; going below 1× is the last
+ * resort, since a blurry picture hurts readability more than a missing glow.
  */
-export class AdaptiveResolution {
+export function qualityLevels(maxPixelRatio: number): QualityLevel[] {
+  const max = Math.max(0.75, maxPixelRatio);
+  const one = Math.min(max, 1);
+  const levels: QualityLevel[] = [
+    { pixelRatio: max, bloom: true, detail: 1 },
+    { pixelRatio: max, bloom: false, detail: 0.6 },
+    { pixelRatio: Math.min(max, 1.25), bloom: false, detail: 0.6 },
+    { pixelRatio: one, bloom: false, detail: 0.2 },
+    { pixelRatio: 0.75, bloom: false, detail: 0.2 },
+  ];
+  return levels.filter((l, i) => i === 0 || JSON.stringify(l) !== JSON.stringify(levels[i - 1]));
+}
+
+/**
+ * Steps down the quality ladder while the frame rate stays low, so slower
+ * machines trade effects and then sharpness for smoothness automatically.
+ * It never steps back up, which avoids oscillating between two levels.
+ */
+export class AdaptiveQuality {
   private slowSeconds = 0;
+  private index: number;
+  private readonly adaptive: boolean;
 
   constructor(
-    public pixelRatio: number,
-    private readonly min = 0.75,
+    private readonly levels: QualityLevel[],
+    preset: QualityPreset = 'auto',
     private readonly targetFps = 50,
-  ) {}
+  ) {
+    this.adaptive = preset === 'auto';
+    // 'low' starts at the first rung without bloom at 1× or less.
+    this.index = preset === 'low' ? Math.max(0, levels.findIndex((l) => !l.bloom && l.pixelRatio <= 1)) : 0;
+  }
 
-  /** Feed the once-per-second fps; returns a new pixel ratio, or null if unchanged. */
-  update(fps: number): number | null {
+  get level(): QualityLevel {
+    return this.levels[this.index];
+  }
+
+  /**
+   * Feed the once-per-second fps; returns the new level, or null if unchanged.
+   * Steps down after two slow seconds, or after one when far below target.
+   */
+  update(fps: number): QualityLevel | null {
+    if (!this.adaptive) return null;
     this.slowSeconds = fps < this.targetFps ? this.slowSeconds + 1 : 0;
-    if (this.slowSeconds < 2 || this.pixelRatio <= this.min) return null;
+    const needed = fps < this.targetFps * 0.7 ? 1 : 2;
+    if (this.slowSeconds < needed || this.index >= this.levels.length - 1) return null;
     this.slowSeconds = 0;
-    this.pixelRatio = Math.max(this.min, Math.round((this.pixelRatio - 0.25) * 100) / 100);
-    return this.pixelRatio;
+    this.index++;
+    return this.level;
   }
 }

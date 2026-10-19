@@ -3,11 +3,14 @@ import type { BodySource } from './core/input/BodyState';
 import { CameraBody } from './core/input/CameraBody';
 import { KeyboardBody } from './core/input/KeyboardBody';
 import type { PoseModel } from './core/pose/PoseTracker';
-import { RunnerGame } from './games/runner/RunnerGame';
+import type { QualityPreset } from './core/perf/FrameStats';
+import { RunnerGame, type WorldName } from './games/runner/RunnerGame';
 
 const app = document.getElementById('app')!;
 const params = new URLSearchParams(location.search);
 const debug = params.has('debug');
+const initialWorld: WorldName = params.get('world') === 'meadow' ? 'meadow' : 'glade';
+const initialQuality = (['auto', 'high', 'low'] as const).find((q) => q === params.get('quality')) ?? 'auto';
 
 let cleanup: (() => void) | null = null;
 
@@ -19,8 +22,8 @@ function showMenu(error?: string): void {
       <div class="menu-card">
         <div class="eyebrow">Immersive Games</div>
         <h1>Warm-up Run</h1>
-        <p class="lead">Run, jump, duck and step through a sunny meadow — with your whole body.
-        Follow Bolt the coach-bot and the on-screen signs.</p>
+        <p class="lead">Run, jump, duck and step along a moonlit path — with your whole body.
+        Follow Bolt the coach-bot and the glowing signs.</p>
         <ol class="howto">
           <li>Place your device so the camera sees you from head to toe (about 2–3 m away).</li>
           <li>Clear some space around you.</li>
@@ -40,6 +43,19 @@ function showMenu(error?: string): void {
               <option value="heavy">Accurate (heavy, slow)</option>
             </select>
           </label>
+          <label>World
+            <select id="world">
+              <option value="glade" ${initialWorld === 'glade' ? 'selected' : ''}>Moonlit Glade</option>
+              <option value="meadow" ${initialWorld === 'meadow' ? 'selected' : ''}>Sunny Meadow</option>
+            </select>
+          </label>
+          <label>Graphics
+            <select id="quality">
+              <option value="auto" ${initialQuality === 'auto' ? 'selected' : ''}>Auto (adapts to your device)</option>
+              <option value="high" ${initialQuality === 'high' ? 'selected' : ''}>High (always glow)</option>
+              <option value="low" ${initialQuality === 'low' ? 'selected' : ''}>Low (no glow or shadows)</option>
+            </select>
+          </label>
           <label><input type="checkbox" id="debug" ${debug ? 'checked' : ''}/> Show debug info (toggle in game with \` )</label>
         </details>
         <p class="privacy">The camera video is processed on your device and never uploaded.</p>
@@ -48,17 +64,26 @@ function showMenu(error?: string): void {
   const opt = () => ({
     model: (document.getElementById('model') as HTMLSelectElement).value as PoseModel,
     debug: (document.getElementById('debug') as HTMLInputElement).checked,
+    world: (document.getElementById('world') as HTMLSelectElement).value as WorldName,
+    quality: (document.getElementById('quality') as HTMLSelectElement).value as QualityPreset,
   });
-  document.getElementById('play-camera')!.onclick = () => void startCamera(opt().model, opt().debug);
-  document.getElementById('play-keys')!.onclick = () => startGame(new KeyboardBody(), undefined, opt().debug);
+  document.getElementById('play-camera')!.onclick = () => void startCamera(opt());
+  document.getElementById('play-keys')!.onclick = () => startGame(new KeyboardBody(), undefined, opt());
 }
 
-async function startCamera(model: PoseModel, debug: boolean): Promise<void> {
+interface Options {
+  model: PoseModel;
+  debug: boolean;
+  world: WorldName;
+  quality: QualityPreset;
+}
+
+async function startCamera(o: Options): Promise<void> {
   app.innerHTML = `<div class="menu"><div class="menu-card loading"><div class="spinner"></div><p id="status">Starting…</p></div></div>`;
   const status = document.getElementById('status')!;
   const delegate = params.get('delegate')?.toUpperCase() === 'CPU' ? 'CPU' : 'GPU';
   const worker = params.get('worker') !== '0';
-  const camera = new CameraBody({ model, delegate, worker });
+  const camera = new CameraBody({ model: o.model, delegate, worker });
   try {
     await camera.init((msg) => (status.textContent = msg));
   } catch (e) {
@@ -74,13 +99,13 @@ async function startCamera(model: PoseModel, debug: boolean): Promise<void> {
     );
     return;
   }
-  startGame(camera, camera, debug);
+  startGame(camera, camera, o);
 }
 
-function startGame(body: BodySource, camera: CameraBody | undefined, debug: boolean): void {
+function startGame(body: BodySource, camera: CameraBody | undefined, { debug, world, quality }: Options): void {
   app.innerHTML = '<div class="stage"></div>';
   const stage = app.querySelector<HTMLElement>('.stage')!;
-  const game = new RunnerGame(stage, { body, camera, debug, onExit: () => showMenu() });
+  const game = new RunnerGame(stage, { body, camera, debug, world, quality, onExit: () => showMenu() });
   cleanup = () => {
     game.dispose();
     body.dispose();

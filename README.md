@@ -20,10 +20,32 @@ here you really have to do it, on time.
 
 | Move        | What to do                              | Obstacle                 |
 | ----------- | --------------------------------------- | ------------------------ |
-| Jump        | Jump with both feet                     | Red/white hurdle         |
-| Duck        | Squat / bend down                       | Yellow/black beam        |
-| Step L/R    | Step sideways (≈ one shoulder width)    | Crates; green arrow lane |
+| Jump        | Jump with both feet                     | Low glowing red hurdle   |
+| Duck        | Squat / bend down                       | High amber/navy beam     |
+| Step L/R    | Step sideways (≈ one shoulder width)    | Violet crystals; mint arrow marks the safe lane |
 | Reach up    | Raise a hand above your head            | Golden stars             |
+
+### Worlds and look
+
+The default world is **Moonlit Glade**: twilight, slightly mysterious but
+friendly. The original **Sunny Meadow** is still there (Settings → World, or
+`?world=meadow`).
+
+- *Palette:* blue-hour navy sky fading to a warm peach horizon, teal-green
+  forest, pale warm-gray flagstones. Accents: mint (runes, "go this way"),
+  lantern gold (fireflies, buttons), violet only for the blocking crystals.
+- *Light:* cool sky fill plus soft light from behind the camera, so the
+  player and obstacles are always lit from the front; the warm moon ahead
+  shows up as a rim light on the avatar and Bolt.
+- *Signature elements:* a big low moon over layered ridges with a faint
+  aurora; ancient stone arches with glowing runes over the path; fireflies,
+  glowing mushrooms and lanterns along the way.
+- *Obstacles* keep one meaning per color and height (see the table above), and
+  each pools a soft glow on the path so it reads from far away. The HUD cue
+  colors match.
+
+Everything is procedural: no texture, model or font files are added (the
+font is still Baloo 2 from Google Fonts).
 
 ## Running it
 
@@ -37,17 +59,31 @@ npm run build      # static site in dist/
 Play with the camera, or with the keyboard for development: ←/→ step,
 Space jump, ↓ duck (hold), E reach (hold), Esc pause, M mute.
 
-URL options: `?debug` shows live detection values plus render fps, pose fps
-and inference time (toggle in game with <kbd>`</kbd>); `?delegate=cpu` forces
-CPU inference if GPU tracking misbehaves; `?worker=0` runs inference on the
-main thread (for comparison).
+URL options: `?debug` shows live detection values plus render fps, pose fps,
+inference time, the current quality level and draw calls (toggle in game with
+<kbd>`</kbd>); `?delegate=cpu` forces CPU inference if GPU tracking
+misbehaves; `?worker=0` runs inference on the main thread (for comparison);
+`?world=meadow` picks the daylight world; `?quality=high|low` fixes the
+graphics level (default `auto`). World and graphics are also in Settings.
 
 ### Performance
 
 Pose inference runs in a Web Worker, so a slow model lowers the *tracking*
-rate but never stalls rendering. Rendering uses at most 1.5× pixel ratio and
-steps the resolution down automatically if the frame rate stays below 50 fps.
-If tracking feels slow, try the *Fast (lite)* model in Settings.
+rate but never stalls rendering. Rendering uses at most 1.5× pixel ratio.
+With *Graphics: Auto*, if the frame rate stays below 50 fps the game steps
+down a quality ladder (`qualityLevels` in `src/core/perf/FrameStats.ts`):
+bloom off and fewer fireflies first, then resolution down to 1×, then 0.75×
+(one step per two slow seconds, or per second when far below target).
+*Low* starts at 1× without bloom and shadows. Shaders for every obstacle kind
+are compiled before the run starts, so new obstacles don't cause stutters. If tracking feels slow, try the
+*Fast (lite)* model in Settings.
+
+The glade is cheap by construction: all looping props are instanced meshes
+that scroll on the GPU (one uniform per frame, no matrix uploads), all glows
+and fireflies are two `Points` draw calls animated in the vertex shader, the
+avatar is two instanced draw calls, only one light casts shadows (from the
+avatar, Bolt and obstacles only), bloom runs at quarter resolution, and the
+vignette is CSS.
 
 To test on a phone/TV on your network, `npm run dev` listens on all
 interfaces — but browsers only allow the camera on `https` or `localhost`, so
@@ -83,12 +119,17 @@ webcam ─▶ PoseTracker ─▶ PoseFrame ─▶ MotionAnalyzer ─▶ BodyStat
   - `Course.ts` — the choreography (sections, beats, speed curve). Obstacles
     are placed by *distance*, so they arrive exactly on their beat.
   - `Judge.ts` — decides perfect / good / miss within generous time windows.
-  - `World.ts` — the "Sunny Meadow" scenery (a `Scenery` implementation;
-    add new themes alongside it).
+  - `World.ts` — the `Scenery` interface and the "Sunny Meadow" world.
+  - `Glade.ts` — the "Moonlit Glade" world (the default). Add new themes as
+    other `Scenery` implementations; each sets its own fog, exposure, rim
+    light and bloom through `look`.
+  - `fx.ts` — shared shader helpers: GPU scrolling for instanced props, rim
+    light, glow point clouds.
   - `Avatar.ts`, `Coach.ts`, `Obstacles.ts`, `Hud.ts`, `RunnerGame.ts`.
 
 Everything visual is procedural (no asset files yet), which keeps it easy to
-iterate on; real models/characters can replace pieces later.
+iterate on; real models/characters can replace pieces later. If CC0 assets are
+added later, list them and their license here.
 
 ## Tuning detection
 
