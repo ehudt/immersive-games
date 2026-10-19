@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Sfx } from '../../core/audio/Sfx';
+import { AdaptiveResolution, FrameStats } from '../../core/perf/FrameStats';
 import type { BodySource, BodyState } from '../../core/input/BodyState';
 import type { CameraBody } from '../../core/input/CameraBody';
 import { CameraPreview } from '../../core/ui/CameraPreview';
@@ -57,6 +58,9 @@ export class RunnerGame {
   private avatarX = 0;
   private energy = 0;
   private debug: boolean;
+  private frameStats = new FrameStats();
+  private resolution: AdaptiveResolution;
+  private drawnPoseFrame: unknown = null;
   private resumeAfterCountdown = false;
   private disposed = false;
   private clock = new THREE.Timer();
@@ -69,7 +73,10 @@ export class RunnerGame {
   ) {
     this.debug = !!opts.debug;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    // Sharp enough on high-DPI screens without paying for 4× the pixels; lowered
+    // further automatically if the frame rate drops.
+    this.resolution = new AdaptiveResolution(Math.min(devicePixelRatio, 1.5));
+    this.renderer.setPixelRatio(this.resolution.pixelRatio);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -215,6 +222,13 @@ export class RunnerGame {
   private frame(timestamp: number): void {
     this.clock.update(timestamp);
     const dt = Math.min(this.clock.getDelta(), 0.1);
+    if (this.frameStats.tick(dt) && this.phase === 'playing') {
+      const pr = this.resolution.update(this.frameStats.fps);
+      if (pr !== null) {
+        this.renderer.setPixelRatio(pr);
+        this.onResize();
+      }
+    }
     const body = this.opts.body;
     body.update(dt);
     const s = body.state;
@@ -265,7 +279,7 @@ export class RunnerGame {
     this.coach.update(moving ? dt : 0, this.distance, speed, this.course.beats, this.judge.next);
 
     // Player avatar.
-    this.avatarX += (s.lane * RUNNER.laneWidth - this.avatarX) * Math.min(1, dt * 10);
+    this.avatarX += (s.lane * RUNNER.laneWidth - this.avatarX) * Math.min(1, dt * 16);
     this.avatar.root.position.x = this.avatarX;
     const lift = Math.min(1.3, s.jumpHeight * (this.opts.camera ? 3 : 1.6));
     this.avatar.update(s.skeleton, lift, dt);
@@ -383,7 +397,12 @@ export class RunnerGame {
   private updateOverlay(dt: number, s: BodyState): void {
     this.hud.update(dt, this.score, this.combo, this.multiplier(), this.time / this.course.duration);
     if (this.opts.camera) {
-      this.preview?.draw(this.opts.camera.lastFrame, s.tracked ? '#4ef0a0' : '#ff5470');
+      // Redraw the skeleton overlay only when a new pose arrives.
+      const frame = this.opts.camera.lastFrame;
+      if (frame !== this.drawnPoseFrame) {
+        this.drawnPoseFrame = frame;
+        this.preview?.draw(frame, s.tracked ? '#4ef0a0' : '#ff5470');
+      }
       this.hud.setEnergy(this.phase === 'playing' ? this.energy : null);
     }
     if (this.debug) {
@@ -392,10 +411,12 @@ export class RunnerGame {
         `tracked ${s.tracked}  lane ${s.lane}  lateral ${s.lateral.toFixed(2)}`,
         `jump ${s.jumping} (${s.jumpHeight.toFixed(2)}m)  duck ${s.ducking} (${s.duckDepth.toFixed(2)})  hands ${s.handsUp}`,
         `activity ${s.activity.toFixed(2)}`,
+        `render ${this.frameStats.fps.toFixed(0)} fps  worst ${this.frameStats.worstMs.toFixed(0)} ms  px ${this.resolution.pixelRatio}`,
       ];
       if (this.opts.camera) {
         const a = this.opts.camera.analyzer;
-        lines.push(`pose fps ${this.opts.camera.tracker.fps.toFixed(0)}`);
+        const tr = this.opts.camera.tracker;
+        lines.push(`pose ${tr.fps.toFixed(0)} fps  infer ${tr.inferenceMs.toFixed(0)} ms  ${tr.backend}`);
         for (const [k, v] of Object.entries(a.debug)) lines.push(`${k} ${v.toFixed(3)}`);
       }
       this.hud.debug.textContent = lines.join('\n');

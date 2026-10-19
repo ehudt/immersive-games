@@ -17,6 +17,12 @@ export interface Scenery {
 
 const LOOP = 220; // meters of scenery before it repeats
 
+interface Clouds {
+  mesh: THREE.InstancedMesh;
+  puffs: { cloud: number; base: THREE.Matrix4 }[];
+  cloudX: number[];
+}
+
 /** "Sunny Meadow": a dirt path through rolling grass, trees, fences and hills. */
 export class MeadowWorld implements Scenery {
   readonly root = new THREE.Group();
@@ -25,7 +31,7 @@ export class MeadowWorld implements Scenery {
   private trackTex: THREE.CanvasTexture;
   private grassTex: THREE.CanvasTexture;
   private scrollers: { mesh: THREE.InstancedMesh; base: THREE.Matrix4[]; z: number[] }[] = [];
-  private clouds: THREE.Group;
+  private clouds: Clouds;
   private disposables: { dispose(): void }[] = [];
   private tmp = new THREE.Matrix4();
 
@@ -128,10 +134,17 @@ export class MeadowWorld implements Scenery {
       s.mesh.instanceMatrix.needsUpdate = true;
     }
 
-    for (const c of this.clouds.children) {
-      c.position.x += dt * 0.6;
-      if (c.position.x > 160) c.position.x = -160;
+    const c = this.clouds;
+    for (let i = 0; i < c.cloudX.length; i++) {
+      c.cloudX[i] += dt * 0.6;
+      if (c.cloudX[i] > 160) c.cloudX[i] = -160;
     }
+    c.puffs.forEach((p, i) => {
+      this.tmp.copy(p.base);
+      this.tmp.elements[12] += c.cloudX[p.cloud];
+      c.mesh.setMatrixAt(i, this.tmp);
+    });
+    c.mesh.instanceMatrix.needsUpdate = true;
 
     // Keep the shadow camera around the player.
     this.sun.position.set(focus.x - 8, 16, focus.z + 6);
@@ -253,25 +266,34 @@ export class MeadowWorld implements Scenery {
     }
   }
 
-  private addClouds(rand: () => number): THREE.Group {
-    const group = new THREE.Group();
-    const geo = this.track(new THREE.IcosahedronGeometry(1, 1));
-    const mat = this.track(new THREE.MeshLambertMaterial({ color: '#ffffff', flatShading: true, fog: false, emissive: '#9fb4c8' }));
+  /** All cloud puffs in one instanced draw call; each cloud drifts sideways. */
+  private addClouds(rand: () => number): Clouds {
+    const puffs: Clouds['puffs'] = [];
+    const cloudX: number[] = [];
     for (let i = 0; i < 16; i++) {
-      const cloud = new THREE.Group();
-      const puffs = 3 + Math.floor(rand() * 4);
-      for (let j = 0; j < puffs; j++) {
-        const p = new THREE.Mesh(geo, mat);
+      cloudX.push((rand() - 0.5) * 320);
+      const n = 3 + Math.floor(rand() * 4);
+      const y = 45 + rand() * 35;
+      const z = -120 - rand() * 180;
+      for (let j = 0; j < n; j++) {
         const s = 3 + rand() * 3.5;
-        p.scale.set(s * 1.4, s, s);
-        p.position.set(j * 6 - puffs * 3, rand() * 2, rand() * 4);
-        cloud.add(p);
+        const m = new THREE.Matrix4().compose(
+          new THREE.Vector3(j * 6 - n * 3, y + rand() * 2, z + rand() * 4),
+          new THREE.Quaternion(),
+          new THREE.Vector3(s * 1.4, s, s),
+        );
+        puffs.push({ cloud: i, base: m });
       }
-      cloud.position.set((rand() - 0.5) * 320, 45 + rand() * 35, -120 - rand() * 180);
-      group.add(cloud);
     }
-    this.root.add(group);
-    return group;
+    const mesh = new THREE.InstancedMesh(
+      this.track(new THREE.IcosahedronGeometry(1, 1)),
+      this.track(new THREE.MeshLambertMaterial({ color: '#ffffff', flatShading: true, fog: false, emissive: '#9fb4c8' })),
+      puffs.length,
+    );
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.frustumCulled = false;
+    this.root.add(mesh);
+    return { mesh, puffs, cloudX };
   }
 }
 

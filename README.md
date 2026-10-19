@@ -37,8 +37,17 @@ npm run build      # static site in dist/
 Play with the camera, or with the keyboard for development: ←/→ step,
 Space jump, ↓ duck (hold), E reach (hold), Esc pause, M mute.
 
-URL options: `?debug` shows live detection values (toggle in game with
-<kbd>`</kbd>), `?delegate=cpu` forces CPU inference if GPU tracking misbehaves.
+URL options: `?debug` shows live detection values plus render fps, pose fps
+and inference time (toggle in game with <kbd>`</kbd>); `?delegate=cpu` forces
+CPU inference if GPU tracking misbehaves; `?worker=0` runs inference on the
+main thread (for comparison).
+
+### Performance
+
+Pose inference runs in a Web Worker, so a slow model lowers the *tracking*
+rate but never stalls rendering. Rendering uses at most 1.5× pixel ratio and
+steps the resolution down automatically if the frame rate stays below 50 fps.
+If tracking feels slow, try the *Fast (lite)* model in Settings.
 
 To test on a phone/TV on your network, `npm run dev` listens on all
 interfaces — but browsers only allow the camera on `https` or `localhost`, so
@@ -59,9 +68,10 @@ webcam ─▶ PoseTracker ─▶ PoseFrame ─▶ MotionAnalyzer ─▶ BodyStat
                                        KeyboardBody ───────▶ (same contract)
 ```
 
-- **`src/core/pose/PoseTracker.ts`** — the only file that knows about
-  MediaPipe ([Pose Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker)).
-  Swap it to try another detector. The WASM runtime is served from
+- **`src/core/pose/PoseTracker.ts`** — camera + detection loop. MediaPipe
+  ([Pose Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker))
+  is isolated in `src/core/pose/mediapipe/` (worker + main-thread fallback);
+  swap it to try another detector. The WASM runtime is served from
   `node_modules` (no CDN); the model is fetched from Google's model storage.
 - **`src/core/pose/MotionAnalyzer.ts`** — turns landmarks into actions.
   Calibrates your standing pose, then measures movement in *body-relative*

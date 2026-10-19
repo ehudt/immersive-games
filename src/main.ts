@@ -57,7 +57,8 @@ async function startCamera(model: PoseModel, debug: boolean): Promise<void> {
   app.innerHTML = `<div class="menu"><div class="menu-card loading"><div class="spinner"></div><p id="status">Starting…</p></div></div>`;
   const status = document.getElementById('status')!;
   const delegate = params.get('delegate')?.toUpperCase() === 'CPU' ? 'CPU' : 'GPU';
-  const camera = new CameraBody({ model, delegate });
+  const worker = params.get('worker') !== '0';
+  const camera = new CameraBody({ model, delegate, worker });
   try {
     await camera.init((msg) => (status.textContent = msg));
   } catch (e) {

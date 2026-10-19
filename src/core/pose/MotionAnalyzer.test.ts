@@ -90,6 +90,40 @@ describe('MotionAnalyzer', () => {
     expect(a.state.jumping).toBe(false);
   });
 
+  it('detects a jump quickly as the player takes off', () => {
+    const { a, t } = calibrated();
+    // Realistic take-off: the body rises 0.06 (0.3 torso) over 150 ms.
+    let detectedAt = Infinity;
+    for (let ms = 0; ms < 500 && detectedAt === Infinity; ms += 1000 / FPS) {
+      a.process(frame(t + ms, { dy: -0.06 * Math.min(1, ms / 150) }));
+      if (a.state.jumping) detectedAt = ms;
+    }
+    // The raw signal first exceeds the threshold in the 100 ms frame: smoothing adds no lag.
+    expect(detectedAt).toBeLessThanOrEqual(101);
+  });
+
+  it('ignores landmark jitter while standing still', () => {
+    let { a, t } = calibrated();
+    // Seeded noise of a few pixels on every coordinate, like a real detector.
+    let seed = 42;
+    const noise = () => {
+      seed = (seed * 16807) % 2147483647;
+      return (seed / 2147483647 - 0.5) * 0.012;
+    };
+    let falseActions = 0;
+    for (let i = 0; i < 30 * 20; i++) {
+      t += 1000 / FPS;
+      const f = frame(t);
+      for (const l of f.image) {
+        l.x += noise();
+        l.y += noise();
+      }
+      a.process(f);
+      if (a.state.jumping || a.state.ducking || a.state.lane !== 0) falseActions++;
+    }
+    expect(falseActions).toBe(0);
+  });
+
   it('does not treat stretching the upper body as a jump', () => {
     let { a, t } = calibrated();
     t = run(a, t, 0.5, () => ({ upperDy: -0.04 }));
