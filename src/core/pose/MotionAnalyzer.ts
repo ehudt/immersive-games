@@ -95,15 +95,19 @@ export class MotionAnalyzer {
   private hint: string | null = null;
 
   private lastTime = 0;
+  // One Euro filters: steady when still, but the high beta opens them up during
+  // fast moves so jumps/ducks are detected with little added latency.
+  // (Coordinates are normalized image units, so a fast move is ~0.5–2 units/s.)
   private filters = {
-    hipX: new OneEuroFilter(1.5, 0.05),
-    hipY: new OneEuroFilter(1.5, 0.05),
-    shoulderX: new OneEuroFilter(1.5, 0.05),
-    shoulderY: new OneEuroFilter(1.5, 0.05),
-    noseY: new OneEuroFilter(1.5, 0.05),
+    hipX: bodyFilter(),
+    hipY: bodyFilter(),
+    shoulderX: bodyFilter(),
+    shoulderY: bodyFilter(),
+    noseY: bodyFilter(),
     torso: new OneEuroFilter(0.5, 0.0),
   };
-  private skeletonFilters = Array.from({ length: LANDMARK_COUNT * 3 }, () => new OneEuroFilter(1.8, 0.3));
+  // World landmarks are in meters (limbs move ~1–3 m/s).
+  private skeletonFilters = Array.from({ length: LANDMARK_COUNT * 3 }, () => new OneEuroFilter(2.5, 1.5));
   private prevKneeY: [number, number] | null = null;
   private activityEma = 0;
   private jumpStart = 0;
@@ -324,6 +328,11 @@ export class MotionAnalyzer {
     }
     return out;
   }
+}
+
+/** Filter for body-center signals (min cutoff Hz, beta, derivative cutoff Hz). */
+function bodyFilter(): OneEuroFilter {
+  return new OneEuroFilter(3, 8, 1);
 }
 
 export function nextLane(lane: Lane, lateral: number, enter: number, exit: number): Lane {
