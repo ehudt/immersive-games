@@ -19,7 +19,8 @@ type Kind =
   | 'thousand' // 1000, 2000
   | 'thousands' // the "אלפים" of 3000..9000
   | 'construct' // "שלושת", "ארבעת"... before "אלפים"
-  | 'digits';
+  | 'digits'
+  | 'near'; // one sound away from some number words: `options`
 
 interface Item {
   kind: Kind;
@@ -28,6 +29,8 @@ interface Item {
   vav: boolean;
   /** Not a number word, only sounds like one ("אשר" for "עשר"). */
   fuzzy?: boolean;
+  /** For 'near' items: the numbers it might be. */
+  options?: number[];
 }
 
 const WORDS: Record<string, [Kind, number]> = {};
@@ -109,8 +112,25 @@ function lookup(word: string, vav: boolean): Item | null {
 }
 
 function soundsLike(word: string, vav: boolean): Item | null {
-  const w = ALIASES[word] ?? SOUNDS[soundKey(word)];
-  return w ? { kind: w[0], value: w[1], vav, fuzzy: true } : null;
+  const key = soundKey(word);
+  const w = ALIASES[word] ?? SOUNDS[key];
+  if (w) return { kind: w[0], value: w[1], vav, fuzzy: true };
+  // One sound off ("שלום" or "שלו" for שלוש): any number it is close to.
+  if (key.length < 2) return null;
+  const options = new Set<number>();
+  for (const [target, [, value]] of Object.entries(SOUNDS))
+    if (target.length >= 3 && oneEditApart(key, target)) options.add(value);
+  return options.size ? { kind: 'near', value: 0, vav, fuzzy: true, options: [...options] } : null;
+}
+
+/** Levenshtein distance ≤ 1 (one letter added, dropped or changed). */
+export function oneEditApart(a: string, b: string): boolean {
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  const rest = (x: string, y: string) => x.slice(i + 1) === y;
+  if (a.length === b.length) return rest(a, b.slice(i + 1));
+  return a.length > b.length ? rest(a, b.slice(i)) : rest(b, a.slice(i));
 }
 
 /** Splits a transcript into number items; anything else becomes null (a gap). */
@@ -252,6 +272,7 @@ export function splitConsecutive(digits: string): number[] | null {
 function spansAt(items: (Item | null)[], i: number): Span[] {
   const it = items[i];
   if (!it) return [];
+  if (it.kind === 'near') return it.options!.map((v) => ({ end: i + 1, values: [v], odd: false, guess: true }));
   if (it.kind === 'digits') {
     const spans: Span[] = [{ end: i + 1, values: [it.value], odd: false }];
     const split = splitConsecutive(String(it.value));

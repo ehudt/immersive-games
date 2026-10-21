@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseNumbers, soundKey, splitConsecutive } from './hebrewNumbers';
+import { oneEditApart, parseNumbers, soundKey, splitConsecutive } from './hebrewNumbers';
 
 describe('parseNumbers', () => {
   it('reads digits', () => {
@@ -89,10 +89,28 @@ describe('sound-alike words', () => {
     expect(parseNumbers('שיר', 9)).toEqual([10]);
   });
 
+  it('accepts words one sound away, like "שלום" for שלוש', () => {
+    expect(parseNumbers('שלום', 2)).toEqual([3]);
+    expect(parseNumbers('אחת שתיים שלום ארבע')).toEqual([1, 2, 3, 4]);
+    expect(parseNumbers('שתיים שלו', 1)).toEqual([2, 3]);
+    expect(parseNumbers('שמונא', 7)).toEqual([8]);
+    // "שלום" is close to both 3 and 30: whichever comes next.
+    expect(parseNumbers('שלום', 29)).toEqual([30]);
+    expect(parseNumbers('שלום', 5)).toEqual([]);
+  });
+
   it('never reads them as a wrong number', () => {
     // "רבה" sounds like 4, but after 2 it is just a word.
     expect(parseNumbers('תודה רבה', 2)).toEqual([]);
     expect(parseNumbers('שיר', 3)).toEqual([]);
+  });
+
+  it('measures one edit', () => {
+    expect(oneEditApart('שלמ', 'שלש')).toBe(true);
+    expect(oneEditApart('של', 'שלש')).toBe(true);
+    expect(oneEditApart('שלשמ', 'שלש')).toBe(true);
+    expect(oneEditApart('שמ', 'שלש')).toBe(false);
+    expect(oneEditApart('כמש', 'שלש')).toBe(false);
   });
 
   it('gives sound keys', () => {
