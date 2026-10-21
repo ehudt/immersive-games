@@ -1,0 +1,719 @@
+/*
+ * "Count to the sky": bright, round and bouncy. A daytime sky that darkens
+ * into space as the rocket climbs; candy colors for number stars and buttons;
+ * dark-plum text on white cards.
+ */
+@property --sky-top {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #4fc3ff;
+}
+@property --sky-bottom {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #d6f3ff;
+}
+
+.counting {
+  --plum: #2b2350;
+  --pink: #ff5d8f;
+  --sun: #ffb627;
+  --teal: #2ec4d6;
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  font-family: 'Fredoka', 'Varela Round', system-ui, sans-serif;
+  color: var(--plum);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.counting button {
+  font-family: inherit;
+  font-weight: 700;
+  font-size: clamp(1.2rem, 4.6vmin, 1.6rem);
+  padding: 0.55em 1.5em;
+  color: #fff;
+  background: linear-gradient(180deg, #ff86ab, var(--pink) 60%, #f0457a);
+  box-shadow:
+    0 5px 0 #c42d5e,
+    0 10px 24px rgba(255, 93, 143, 0.4);
+}
+.counting button:active {
+  box-shadow:
+    0 2px 0 #c42d5e,
+    0 6px 16px rgba(255, 93, 143, 0.35);
+}
+.counting button.secondary {
+  color: var(--plum);
+  background: #eef1ff;
+  box-shadow: 0 5px 0 #c6cbe8;
+}
+.counting button[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------------------------- sky */
+
+.sky,
+.sky-bg,
+.sky-stars {
+  position: absolute;
+  inset: 0;
+}
+.sky {
+  transition:
+    --sky-top 1.2s,
+    --sky-bottom 1.2s;
+}
+.sky-bg {
+  background: linear-gradient(180deg, var(--sky-top), var(--sky-bottom));
+}
+.sky-stars {
+  opacity: 0;
+  transition: opacity 1.5s;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='200'%3E%3Cg fill='%23fff'%3E%3Ccircle cx='14' cy='22' r='1.6'/%3E%3Ccircle cx='80' cy='60' r='1'/%3E%3Ccircle cx='150' cy='18' r='1.3'/%3E%3Ccircle cx='200' cy='96' r='1.8'/%3E%3Ccircle cx='40' cy='130' r='1.1'/%3E%3Ccircle cx='120' cy='150' r='1.4'/%3E%3Ccircle cx='225' cy='175' r='1'/%3E%3C/g%3E%3C/svg%3E")
+      0 0 / 240px 200px,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='330' height='270'%3E%3Cg fill='%23fff6c4'%3E%3Cpath d='M60 34 L62 40 L68 42 L62 44 L60 50 L58 44 L52 42 L58 40Z'/%3E%3Cpath d='M250 190 L252 196 L258 198 L252 200 L250 206 L248 200 L242 198 L248 196Z'/%3E%3Ccircle cx='170' cy='100' r='1.6'/%3E%3C/g%3E%3C/svg%3E")
+      40px 30px / 330px 270px;
+  animation: twinkle 3s ease-in-out infinite alternate;
+}
+@keyframes twinkle {
+  to {
+    filter: brightness(0.6);
+  }
+}
+
+.sky-world {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0;
+  transition: transform 0.75s cubic-bezier(0.3, 1.25, 0.6, 1);
+  will-change: transform;
+}
+.sky.landing .sky-world {
+  transition-duration: 1.3s;
+  transition-timing-function: cubic-bezier(0.6, 0, 0.3, 1);
+}
+
+.ground {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -10vh;
+  height: calc(var(--rocket-vh) + 24vh);
+}
+.ground-hills {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.ground-props > svg {
+  position: absolute;
+  /* The launch line: where the rocket stands. */
+  bottom: calc(10vh + var(--rocket-vh) - 6px);
+  height: auto;
+}
+.ground-props .tree {
+  width: clamp(48px, 9vmin, 84px);
+}
+.ground-props .t1 {
+  left: 6%;
+}
+.ground-props .t2 {
+  left: 24%;
+  width: clamp(40px, 7vmin, 66px);
+}
+.ground-props .house {
+  left: 74%;
+  width: clamp(70px, 13vmin, 120px);
+}
+.ground-props .flower {
+  width: clamp(20px, 3.5vmin, 32px);
+}
+.ground-props .f1 {
+  left: 36%;
+}
+.ground-props .f2 {
+  left: 63%;
+}
+.ground-props .pad {
+  left: 50%;
+  translate: -50% 0;
+  width: clamp(110px, 22vmin, 190px);
+  bottom: calc(10vh + var(--rocket-vh) - 16px);
+}
+
+.deco {
+  position: absolute;
+  translate: -50% 0;
+  animation: drift var(--dur, 8s) ease-in-out infinite alternate;
+}
+.deco svg {
+  display: block;
+  width: auto;
+  max-width: 34vw;
+  height: auto;
+}
+@keyframes drift {
+  to {
+    transform: translateX(var(--drift, 20px));
+  }
+}
+.deco-cloud {
+  filter: drop-shadow(0 6px 10px rgba(40, 90, 160, 0.15));
+}
+.deco-cloud.s1 {
+  width: 90px;
+  opacity: 0.85;
+}
+.deco-cloud.s2 {
+  width: 130px;
+}
+.deco-cloud.s3 {
+  width: 170px;
+}
+.deco-bird {
+  width: 34px;
+  animation: flap 0.5s ease-in-out infinite alternate;
+}
+@keyframes flap {
+  to {
+    transform: scaleY(0.5);
+  }
+}
+.deco-balloon {
+  width: 38px;
+}
+.deco-hotair {
+  width: 84px;
+}
+.deco-plane {
+  width: 150px;
+}
+.deco-moon {
+  width: 130px;
+  filter: drop-shadow(0 0 30px rgba(255, 240, 190, 0.6));
+}
+.deco-saturn {
+  width: 190px;
+}
+.deco-galaxy {
+  width: 180px;
+}
+.deco-comet {
+  width: 140px;
+}
+
+/* --------------------------------------------------- number stars */
+
+.num-star {
+  position: absolute;
+  width: 78px;
+  height: 75px;
+  translate: -50% 0;
+  rotate: var(--tilt);
+  display: grid;
+  place-items: center;
+  animation: star-in 0.55s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+.num-star svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.15));
+}
+.num-star path {
+  fill: var(--c);
+  stroke: #fff;
+  stroke-width: 6;
+  stroke-linejoin: round;
+}
+.num-star span {
+  position: relative;
+  top: 4px;
+  font-size: 25px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.22);
+}
+.num-star.long span {
+  font-size: 19px;
+}
+@keyframes star-in {
+  from {
+    scale: 0;
+    opacity: 0;
+  }
+}
+
+/* ---------------------------------------------------------- rocket */
+
+.rocket {
+  position: absolute;
+  left: 50%;
+  bottom: var(--rocket-vh);
+  width: clamp(84px, 15vmin, 136px);
+  translate: -50% 22%;
+  --fuel: 1;
+}
+.rocket-body {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 8px 14px rgba(20, 30, 80, 0.25));
+}
+.rocket-flame {
+  position: absolute;
+  top: 66%;
+  left: 50%;
+  width: 46%;
+  translate: -50% 0;
+  transform-origin: 50% 0;
+  scale: 0;
+  transition: scale 0.25s;
+}
+.rocket-flame svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  animation: flicker 0.12s linear infinite alternate;
+  transform-origin: 50% 0;
+  filter: drop-shadow(0 0 12px rgba(255, 170, 40, 0.8));
+}
+@keyframes flicker {
+  to {
+    transform: scale(0.86, 1.12);
+  }
+}
+.rocket.flying .rocket-flame {
+  scale: 1 var(--fuel);
+}
+.rocket.flying .rocket-bob {
+  animation: bob 1.6s ease-in-out infinite alternate;
+}
+@keyframes bob {
+  from {
+    transform: translateY(-4px) rotate(-1.5deg);
+  }
+  to {
+    transform: translateY(6px) rotate(1.5deg);
+  }
+}
+.rocket.boost .rocket-kick {
+  animation: kick 0.5s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+@keyframes kick {
+  30% {
+    transform: translateY(-18px) scale(1.08, 1.12);
+  }
+}
+.rocket.boost .rocket-flame {
+  scale: 1.25 1.45;
+}
+.rocket.party .rocket-bob {
+  animation: party 0.9s ease-in-out infinite;
+}
+@keyframes party {
+  0%,
+  100% {
+    transform: rotate(0) translateY(0);
+  }
+  25% {
+    transform: rotate(-12deg) translateY(-14px);
+  }
+  75% {
+    transform: rotate(12deg) translateY(-14px);
+  }
+}
+.rocket.party .rocket-flame {
+  scale: 1.1;
+}
+
+/* ------------------------------------------------------------- hud */
+
+.fx-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.c-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: max(12px, env(safe-area-inset-top)) 16px 0;
+  z-index: 6;
+}
+.counting .c-icon {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  font-size: 1.3rem;
+  color: var(--plum);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 0 rgba(43, 35, 80, 0.18);
+}
+.c-best {
+  margin-inline-start: auto;
+  padding: 0.3em 0.9em;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+.c-best:empty {
+  display: none;
+}
+
+.c-number {
+  position: absolute;
+  top: max(64px, 7vh);
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: clamp(88px, 26vmin, 230px);
+  line-height: 1;
+  font-weight: 700;
+  color: #fff;
+  --c: var(--pink);
+  text-shadow:
+    0 0.05em 0 var(--c),
+    0 0.09em 0 rgba(0, 0, 0, 0.12),
+    0 0.12em 0.3em rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+  z-index: 2;
+}
+.c-number.hide {
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.c-number.pop {
+  animation: pop 0.45s cubic-bezier(0.3, 1.8, 0.5, 1);
+}
+@keyframes pop {
+  from {
+    scale: 1.45;
+    rotate: -6deg;
+  }
+}
+
+.c-praise {
+  position: absolute;
+  top: 40%;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  z-index: 3;
+  opacity: 0;
+}
+.c-praise.show {
+  animation: praise 2.2s ease-out both;
+}
+.c-praise .n {
+  font-size: clamp(36px, 10vmin, 80px);
+  font-weight: 700;
+  color: var(--sun);
+  -webkit-text-stroke: 3px #fff;
+  paint-order: stroke fill;
+}
+.c-praise .w {
+  font-size: clamp(30px, 8vmin, 64px);
+  font-weight: 700;
+  color: #fff;
+  text-shadow:
+    0 4px 0 var(--pink),
+    0 8px 20px rgba(0, 0, 0, 0.2);
+}
+@keyframes praise {
+  0% {
+    opacity: 0;
+    scale: 0.3;
+  }
+  15% {
+    opacity: 1;
+    scale: 1.1;
+  }
+  25% {
+    scale: 1;
+  }
+  80% {
+    opacity: 1;
+    translate: 0 -10px;
+  }
+  100% {
+    opacity: 0;
+    translate: 0 -40px;
+  }
+}
+
+.c-listen {
+  position: absolute;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  left: 50%;
+  translate: -50% 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.45em 1.1em;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 6px 20px rgba(20, 30, 80, 0.2);
+  font-weight: 600;
+  font-size: clamp(1rem, 3.6vmin, 1.25rem);
+  white-space: nowrap;
+  opacity: 0;
+  transition:
+    opacity 0.3s,
+    translate 0.3s;
+  z-index: 4;
+}
+.c-listen.show {
+  opacity: 1;
+  translate: -50% 0;
+}
+.c-listen .mic {
+  font-size: 1.3em;
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+.c-listen.on .mic {
+  filter: none;
+  opacity: 1;
+  animation: breathe 1.4s ease-in-out infinite alternate;
+}
+@keyframes breathe {
+  to {
+    scale: 1.15;
+  }
+}
+.c-listen .bars {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+}
+.c-listen .bars i {
+  width: 5px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--teal);
+  transition: height 0.2s;
+}
+.c-listen.hearing .bars i {
+  animation: bar 0.4s ease-in-out infinite alternate;
+}
+.c-listen.hearing .bars i:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.c-listen.hearing .bars i:nth-child(3) {
+  animation-delay: 0.2s;
+}
+.c-listen.hearing .bars i:nth-child(4) {
+  animation-delay: 0.3s;
+}
+@keyframes bar {
+  from {
+    height: 6px;
+  }
+  to {
+    height: 22px;
+  }
+}
+
+/* ----------------------------------------------------------- cards */
+
+.c-panel {
+  position: absolute;
+  inset: 0;
+  display: none;
+  justify-items: center;
+  align-items: start;
+  padding: max(70px, 8vh) 16px 16px;
+  overflow: auto;
+  z-index: 4;
+}
+.c-panel.show {
+  display: grid;
+}
+.c-card {
+  width: min(520px, 100%);
+  text-align: center;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 32px;
+  padding: 1.6rem 1.6rem 1.4rem;
+  box-shadow:
+    0 10px 0 rgba(43, 35, 80, 0.08),
+    0 24px 60px rgba(20, 30, 80, 0.25);
+  animation: card-in 0.5s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+@keyframes card-in {
+  from {
+    scale: 0.6;
+    opacity: 0;
+  }
+}
+.c-card h1,
+.c-card h2 {
+  margin: 0.1em 0 0.2em;
+  line-height: 1.1;
+  font-weight: 700;
+}
+.c-title {
+  font-size: clamp(2.2rem, 9vmin, 3.4rem);
+  background: linear-gradient(90deg, var(--pink), var(--sun), var(--teal));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  padding-bottom: 0.08em;
+}
+.c-card h2 {
+  font-size: clamp(1.8rem, 7vmin, 2.6rem);
+}
+.c-lead {
+  font-size: clamp(1.25rem, 4.6vmin, 1.6rem);
+  margin: 0.4em 0;
+  line-height: 1.35;
+}
+.c-lead b {
+  color: var(--pink);
+}
+.c-sub {
+  font-size: clamp(1rem, 3.8vmin, 1.2rem);
+  margin: 0.4em 0;
+  line-height: 1.45;
+  color: #4d4673;
+}
+.c-warn {
+  background: #fff1d6;
+  color: #8a4b00;
+  border-radius: 16px;
+  padding: 0.6em 0.9em;
+}
+.c-note {
+  margin: 1em 0 0;
+  font-size: 0.85rem;
+  color: #8a86a8;
+}
+.c-buttons {
+  display: flex;
+  gap: 0.8rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+.c-emoji,
+.c-trophy {
+  font-size: 4rem;
+  line-height: 1;
+}
+.c-trophy {
+  font-size: 5rem;
+  animation: trophy 1.2s ease-in-out infinite alternate;
+}
+@keyframes trophy {
+  from {
+    rotate: -8deg;
+    scale: 1;
+  }
+  to {
+    rotate: 8deg;
+    scale: 1.1;
+  }
+}
+.c-reached {
+  margin: 0;
+  font-size: 1.3rem;
+  color: #4d4673;
+}
+.c-final {
+  font-size: clamp(5rem, 22vmin, 8rem);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--sun);
+  -webkit-text-stroke: 5px var(--plum);
+  paint-order: stroke fill;
+  text-shadow: 0 8px 0 rgba(43, 35, 80, 0.15);
+  animation: pop 0.7s cubic-bezier(0.3, 1.8, 0.5, 1) 0.2s both;
+}
+.c-record {
+  margin: 0.4em 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--pink);
+  animation: breathe 0.8s ease-in-out infinite alternate;
+}
+.c-tip {
+  display: inline-block;
+  margin: 0.3em 0 0;
+  padding: 0.3em 0.9em;
+  border-radius: 999px;
+  background: #eaf9fb;
+  color: #1d7f8c;
+  font-size: 1.05rem;
+}
+
+/* ----------------------------------------------------------- debug */
+
+.c-debug {
+  display: none;
+  position: absolute;
+  left: 8px;
+  bottom: 70px;
+  width: min(460px, calc(100% - 16px));
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(10, 16, 40, 0.8);
+  color: #cfe3ff;
+  font: 12px/1.35 ui-monospace, monospace;
+  z-index: 7;
+  user-select: text;
+}
+.c-debug.show {
+  display: block;
+}
+.c-debug form {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.c-debug input:not([type]) {
+  flex: 1;
+  font: inherit;
+  padding: 4px 6px;
+}
+.c-debug pre {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  max-height: 30vh;
+  overflow: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deco,
+  .sky-stars,
+  .rocket.flying .rocket-bob,
+  .rocket.party .rocket-bob,
+  .c-trophy {
+    animation: none;
+  }
+}

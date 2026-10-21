@@ -3,8 +3,8 @@
  * Must be constructed after a user gesture so the AudioContext may start.
  */
 export class Sfx {
-  private ctx: AudioContext | null;
-  private master: GainNode | null = null;
+  protected ctx: AudioContext | null;
+  protected master: GainNode | null = null;
   muted = false;
 
   constructor() {
@@ -45,7 +45,7 @@ export class Sfx {
     [523, 659, 784, 1046].forEach((f, i) => this.tone(f, 0.25, 'triangle', 0.6, i * 0.12));
   }
 
-  private tone(freq: number, dur: number, type: OscillatorType, vol: number, delay = 0, slideTo?: number): void {
+  protected tone(freq: number, dur: number, type: OscillatorType, vol: number, delay = 0, slideTo?: number): void {
     if (!this.ctx || !this.master || this.muted) return;
     const t = this.ctx.currentTime + delay;
     const osc = this.ctx.createOscillator();

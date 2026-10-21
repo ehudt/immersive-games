@@ -1,0 +1,261 @@
+/**
+ * Turns Hebrew speech-recognition transcripts into numbers.
+ *
+ * Recognizers return counting either as digits ("1 2 3", sometimes glued as
+ * "123") or as words ("אחת שתיים שלוש", "עשרים ואחת"), in feminine or
+ * masculine forms, with or without the "ו" (and) prefix. Word sequences are
+ * often ambiguous: "תשע עשר" is 19, or 9 followed by 10. So the parser lists
+ * every reading of each span and picks the segmentation that best looks like
+ * counting (most consecutive steps), optionally continuing from a known last
+ * number.
+ */
+
+type Kind =
+  | 'unit' // 1..9 (also the "שתים"/"שנים" teen forms)
+  | 'ten' // 10 alone, or the "עשרה" of a teen
+  | 'tens' // 20..90
+  | 'hundred' // 100, 200
+  | 'hundreds' // the "מאות" of 300..900
+  | 'thousand' // 1000, 2000
+  | 'thousands' // the "אלפים" of 3000..9000
+  | 'construct' // "שלושת", "ארבעת"... before "אלפים"
+  | 'digits';
+
+interface Item {
+  kind: Kind;
+  value: number;
+  /** Written with the "ו" (and) prefix. */
+  vav: boolean;
+}
+
+const WORDS: Record<string, [Kind, number]> = {};
+function words(kind: Kind, value: number, ...forms: string[]): void {
+  for (const f of forms) WORDS[f] = [kind, value];
+}
+words('unit', 1, 'אחת', 'אחד');
+words('unit', 2, 'שתיים', 'שתים', 'שניים', 'שנים', 'שתי', 'שני');
+words('unit', 3, 'שלוש', 'שלושה', 'שלש', 'שלשה');
+words('unit', 4, 'ארבע', 'ארבעה');
+words('unit', 5, 'חמש', 'חמישה', 'חמשה');
+words('unit', 6, 'שש', 'שישה', 'ששה');
+words('unit', 7, 'שבע', 'שבעה');
+words('unit', 8, 'שמונה');
+words('unit', 9, 'תשע', 'תשעה');
+words('ten', 10, 'עשר', 'עשרה');
+words('tens', 20, 'עשרים');
+words('tens', 30, 'שלושים', 'שלשים');
+words('tens', 40, 'ארבעים');
+words('tens', 50, 'חמישים', 'חמשים');
+words('tens', 60, 'שישים', 'ששים');
+words('tens', 70, 'שבעים');
+words('tens', 80, 'שמונים');
+words('tens', 90, 'תשעים');
+words('hundred', 100, 'מאה');
+words('hundred', 200, 'מאתיים', 'מאתים');
+words('hundreds', 100, 'מאות');
+words('thousand', 1000, 'אלף');
+words('thousand', 2000, 'אלפיים');
+words('thousands', 1000, 'אלפים');
+words('construct', 3, 'שלושת', 'שלשת');
+words('construct', 4, 'ארבעת');
+words('construct', 5, 'חמשת', 'חמישת');
+words('construct', 6, 'ששת', 'שישת');
+words('construct', 7, 'שבעת');
+words('construct', 8, 'שמונת');
+words('construct', 9, 'תשעת');
+words('construct', 10, 'עשרת');
+
+/** Niqqud, cantillation and the geresh/gershayim marks. */
+const MARKS = /[֑-ׇ׳״]/g;
+
+function lookup(word: string, vav: boolean): Item | null {
+  if (/^\d+$/.test(word)) return { kind: 'digits', value: Number(word), vav };
+  const w = WORDS[word];
+  return w ? { kind: w[0], value: w[1], vav } : null;
+}
+
+/** Splits a transcript into number items; anything else becomes null (a gap). */
+export function tokenize(text: string): (Item | null)[] {
+  const raw = text
+    .replace(MARKS, '')
+    .replace(/(\d),(?=\d{3}\b)/g, '$1') // "1,000"
+    .split(/[^א-ת\d]+/)
+    .filter(Boolean);
+  const out: (Item | null)[] = [];
+  let pendingVav = false;
+  for (const tok of raw) {
+    if (tok === 'ו') {
+      // A detached "ו" ("ו-3", "ו 3") belongs to the next word.
+      pendingVav = true;
+      continue;
+    }
+    // Digits can be glued to letters ("ו3").
+    const parts = tok.match(/\d+|[^\d]+/g) ?? [];
+    for (const part of parts) {
+      if (part === 'ו') {
+        pendingVav = true;
+        continue;
+      }
+      let item = lookup(part, pendingVav);
+      if (!item && part.startsWith('ו') && part.length > 1) item = lookup(part.slice(1), true);
+      out.push(item);
+      pendingVav = false;
+    }
+  }
+  return out;
+}
+
+interface Span {
+  end: number;
+  values: number[];
+  /** Reading starts with a dangling "ו" ("ואחת" on its own) — unlikely. */
+  odd: boolean;
+  /** A glued digit run read as several numbers: only plausible as the next count. */
+  split?: boolean;
+}
+
+type Part = { end: number; value: number };
+
+const isUnit = (it: Item | null | undefined): it is Item =>
+  !!it && (it.kind === 'unit' || (it.kind === 'digits' && it.value >= 1 && it.value <= 9));
+
+/** Readings of 1..99 starting at i (the first item may carry a "ו"). */
+function belowHundred(items: (Item | null)[], i: number): Part[] {
+  const it = items[i];
+  if (!it) return [];
+  const out: Part[] = [];
+  if (it.kind === 'unit') {
+    out.push({ end: i + 1, value: it.value });
+    const next = items[i + 1];
+    if (next && next.kind === 'ten' && !next.vav) out.push({ end: i + 2, value: 10 + it.value });
+  } else if (it.kind === 'ten') {
+    out.push({ end: i + 1, value: 10 });
+  } else if (it.kind === 'tens') {
+    out.push({ end: i + 1, value: it.value });
+    const next = items[i + 1];
+    if (isUnit(next)) out.push({ end: i + 2, value: it.value + next.value });
+  } else if (it.kind === 'digits' && it.value >= 1 && it.value <= 99) {
+    out.push({ end: i + 1, value: it.value });
+  }
+  return out;
+}
+
+function hundreds(items: (Item | null)[], i: number): Part[] {
+  const it = items[i];
+  if (!it) return [];
+  if (it.kind === 'hundred') return [{ end: i + 1, value: it.value }];
+  const next = items[i + 1];
+  if (it.kind === 'unit' && it.value >= 3 && next?.kind === 'hundreds' && !next.vav)
+    return [{ end: i + 2, value: it.value * 100 }];
+  return [];
+}
+
+function thousands(items: (Item | null)[], i: number): Part[] {
+  const it = items[i];
+  if (!it) return [];
+  if (it.kind === 'thousand') return [{ end: i + 1, value: it.value }];
+  const next = items[i + 1];
+  if ((it.kind === 'construct' || (it.kind === 'unit' && it.value >= 3)) && next?.kind === 'thousands' && !next.vav)
+    return [{ end: i + 2, value: it.value * 1000 }];
+  return [];
+}
+
+/** Every reading of one spoken number (1..9999) that starts at item i. */
+function wordNumbers(items: (Item | null)[], i: number): Part[] {
+  const out: Part[] = [];
+  const add = (start: Part[], rest: (i: number) => Part[]) => {
+    for (const s of start) {
+      out.push(s);
+      for (const r of rest(s.end)) out.push({ end: r.end, value: s.value + r.value });
+    }
+  };
+  const afterHundreds = (j: number) => belowHundred(items, j);
+  const afterThousands = (j: number) => {
+    const res: Part[] = [...belowHundred(items, j)];
+    for (const h of hundreds(items, j)) {
+      res.push(h);
+      for (const r of belowHundred(items, h.end)) res.push({ end: r.end, value: h.value + r.value });
+    }
+    return res;
+  };
+  add(thousands(items, i), afterThousands);
+  add(hundreds(items, i), afterHundreds);
+  out.push(...belowHundred(items, i));
+  return out;
+}
+
+/** Splits a glued digit run ("123", "91011") into consecutive numbers, if it is one. */
+export function splitConsecutive(digits: string): number[] | null {
+  for (let len = 1; len <= digits.length / 2; len++) {
+    if (digits[0] === '0') return null;
+    const seq: number[] = [];
+    let n = Number(digits.slice(0, len));
+    let pos = 0;
+    while (pos < digits.length) {
+      const s = String(n);
+      if (!digits.startsWith(s, pos)) break;
+      seq.push(n);
+      pos += s.length;
+      n++;
+    }
+    if (pos === digits.length && seq.length > 1) return seq;
+  }
+  return null;
+}
+
+function spansAt(items: (Item | null)[], i: number): Span[] {
+  const it = items[i];
+  if (!it) return [];
+  if (it.kind === 'digits') {
+    const spans: Span[] = [{ end: i + 1, values: [it.value], odd: false }];
+    const split = splitConsecutive(String(it.value));
+    if (split) spans.push({ end: i + 1, values: split, odd: false, split: true });
+    // "20 ו-1": digits followed by a unit.
+    if (it.value % 10 === 0 && it.value >= 20 && it.value < 100 && isUnit(items[i + 1]) && items[i + 1]!.vav)
+      spans.push({ end: i + 2, values: [it.value + items[i + 1]!.value], odd: false });
+    return spans;
+  }
+  return wordNumbers(items, i).map((p) => ({ end: p.end, values: [p.value], odd: it.vav }));
+}
+
+/**
+ * Reads the numbers in a transcript. `last` is the number counted just before
+ * this text (0 at the start), which helps resolve ambiguous readings.
+ *
+ * Readings are ranked by consecutive steps (n → n+1), minus one for a reading
+ * that starts with a dangling "ו" and 1.5 for each number word left unread;
+ * ties go to fewer (so longer) numbers.
+ */
+export function parseNumbers(text: string, last = 0): number[] {
+  const items = tokenize(text);
+  const n = items.length;
+  type State = { rank: number; values: number[] };
+  const rank = (steps: number, skipped: number, count: number) => (steps - 1.5 * skipped) * 1e4 - count;
+  // best[i]: best reading of items[0..i), keyed by the last number read.
+  const best: Map<number, State & { steps: number; skipped: number }>[] = Array.from({ length: n + 1 }, () => new Map());
+  best[0].set(last, { rank: 0, steps: 0, skipped: 0, values: [] });
+  const offer = (i: number, key: number, steps: number, skipped: number, values: number[]) => {
+    const r = rank(steps, skipped, values.length);
+    const cur = best[i].get(key);
+    if (!cur || r > cur.rank) best[i].set(key, { rank: r, steps, skipped, values });
+  };
+  for (let i = 0; i < n; i++) {
+    for (const [prev, st] of best[i]) {
+      // Leave this item unread (free if it isn't a number word at all).
+      offer(i + 1, prev, st.steps, st.skipped + (items[i] ? 1 : 0), st.values);
+      for (const span of spansAt(items, i)) {
+        if (span.split && span.values[0] !== prev + 1) continue;
+        let steps = st.steps - (span.odd ? 1 : 0);
+        let p = prev;
+        for (const v of span.values) {
+          if (v === p + 1) steps++;
+          p = v;
+        }
+        offer(span.end, p, steps, st.skipped, [...st.values, ...span.values]);
+      }
+    }
+  }
+  let result: State | undefined;
+  for (const st of best[n].values()) if (!result || st.rank > result.rank) result = st;
+  return result?.values ?? [];
+}

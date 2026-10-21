@@ -5,6 +5,7 @@ import { KeyboardBody } from './core/input/KeyboardBody';
 import type { PoseModel } from './core/pose/PoseTracker';
 import type { QualityPreset } from './core/perf/FrameStats';
 import { RunnerGame, type WorldName } from './games/runner/RunnerGame';
+import { CountingGame } from './games/counting/CountingGame';
 
 const app = document.getElementById('app')!;
 const params = new URLSearchParams(location.search);
@@ -14,12 +15,60 @@ const initialQuality = (['auto', 'high', 'low'] as const).find((q) => q === para
 
 let cleanup: (() => void) | null = null;
 
-function showMenu(error?: string): void {
+function showHome(): void {
   cleanup?.();
   cleanup = null;
+  history.replaceState(null, '', gameUrl(null));
   app.innerHTML = `
     <div class="menu">
       <div class="menu-card">
+        <div class="eyebrow">Immersive Games</div>
+        <h1>Pick a game</h1>
+        <div class="game-list">
+          <button class="game-tile" id="pick-runner">
+            <span class="tile-icon">🏃</span>
+            <span class="tile-name">Warm-up Run</span>
+            <span class="tile-text">Run, jump and duck with your whole body (camera).</span>
+          </button>
+          <button class="game-tile" id="pick-counting" dir="rtl" lang="he">
+            <span class="tile-icon">🚀</span>
+            <span class="tile-name">סופרים עד השמיים</span>
+            <span class="tile-text">משחק ספירה בקול לילדים (מיקרופון).</span>
+          </button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('pick-runner')!.onclick = () => showMenu();
+  document.getElementById('pick-counting')!.onclick = () => startCounting();
+}
+
+/** The page URL with `?game=` set (or removed), keeping other options. */
+function gameUrl(game: string | null): string {
+  const p = new URLSearchParams(location.search);
+  if (game) p.set('game', game);
+  else p.delete('game');
+  const q = p.toString();
+  return location.pathname + (q ? `?${q}` : '') + location.hash;
+}
+
+function startCounting(): void {
+  cleanup?.();
+  history.replaceState(null, '', gameUrl('counting'));
+  app.innerHTML = '';
+  const game = new CountingGame(app, { debug, onExit: () => showHome() });
+  cleanup = () => game.dispose();
+  game.start();
+  if (debug) (window as unknown as { game: CountingGame }).game = game;
+}
+
+function showMenu(error?: string): void {
+  cleanup?.();
+  cleanup = null;
+  history.replaceState(null, '', gameUrl('runner'));
+  app.innerHTML = `
+    <div class="menu">
+      <div class="menu-card">
+        <button class="back-link" id="home">← All games</button>
         <div class="eyebrow">Immersive Games</div>
         <h1>Warm-up Run</h1>
         <p class="lead">Run, jump, duck and step along a moonlit path — with your whole body.
@@ -67,6 +116,7 @@ function showMenu(error?: string): void {
     world: (document.getElementById('world') as HTMLSelectElement).value as WorldName,
     quality: (document.getElementById('quality') as HTMLSelectElement).value as QualityPreset,
   });
+  document.getElementById('home')!.onclick = () => showHome();
   document.getElementById('play-camera')!.onclick = () => void startCamera(opt());
   document.getElementById('play-keys')!.onclick = () => startGame(new KeyboardBody(), undefined, opt());
 }
@@ -115,4 +165,7 @@ function startGame(body: BodySource, camera: CameraBody | undefined, { debug, wo
   if (debug) (window as unknown as { game: RunnerGame }).game = game;
 }
 
-showMenu();
+const initialGame = params.get('game');
+if (initialGame === 'counting') startCounting();
+else if (initialGame === 'runner') showMenu();
+else showHome();

@@ -2,6 +2,10 @@
 
 Browser games where **your body is the controller**. A webcam tracks your
 pose, and you play by actually moving: jumping, ducking, stepping, reaching.
+Or your voice: the microphone listens while you count out loud.
+
+The home screen lets you pick a game; `?game=runner` or `?game=counting`
+links straight to one.
 
 ## Game 1 — Warm-up Run
 
@@ -46,6 +50,37 @@ friendly. The original **Sunny Meadow** is still there (Settings → World, or
 
 Everything is procedural: no texture, model or font files are added (the
 font is still Baloo 2 from Google Fonts).
+
+## Game 2 — סופרים עד השמיים (Count to the Sky)
+
+A Hebrew counting game for kids. The child counts out loud — אחת, שתיים,
+שלוש… — and every correct number lifts a rocket one step higher: past the
+hills, through clouds, balloons and a plane, into the sunset, then past the
+moon and Saturn into space. Each number leaves a colored star behind, with a
+"bloop" that climbs the scale; every ten gets a cheer and confetti.
+
+The game never asks for the next number. It ends when the child says a wrong
+number (e.g. skips one) or stays quiet for a while (about 6–8 s; 12 s for the
+first number); the rocket's flame shrinks as that time runs out, and each
+number refuels it. Then there is a fanfare, cheering, fireworks and confetti,
+the result ("ספרת עד 37") and the record, plus "עוד פעם!" to try again.
+
+- **Speech recognition** uses the browser's built-in Web Speech API with
+  `he-IL`: free, no API key, nothing to pay for. It works in Chrome, Edge,
+  Safari and Samsung Internet (not Firefox). In Chrome the audio goes to
+  Google's speech service, so it needs an internet connection.
+- **Reading the numbers** (`src/core/speech/hebrewNumbers.ts`): recognizers
+  return digits ("1 2 3", sometimes glued as "123") or words in either gender,
+  with or without "ו" ("עשרים ואחת"), up to the thousands. Ambiguous phrases
+  like "תשע עשר" (19, or 9 then 10) are resolved by picking the reading that
+  looks most like counting.
+- **Judging** (`src/games/counting/CountJudge.ts`): interim results only move
+  the count forward, for instant feedback; a wrong number counts only once the
+  recognizer finalizes it. Numbers already counted are ignored (recognizers
+  repeat whole transcripts). A clipped first word ("שתיים" first) is forgiven.
+  The patience times are in `patienceMs`.
+- `?debug` shows every transcript and verdict, and has a box to type
+  transcripts by hand (works without a microphone).
 
 ## Running it
 
@@ -126,6 +161,12 @@ webcam ─▶ PoseTracker ─▶ PoseFrame ─▶ MotionAnalyzer ─▶ BodyStat
   - `fx.ts` — shared shader helpers: GPU scrolling for instanced props, rim
     light, glow point clouds.
   - `Avatar.ts`, `Coach.ts`, `Obstacles.ts`, `Hud.ts`, `RunnerGame.ts`.
+- **`src/core/speech/`** — `SpeechListener.ts` wraps the Web Speech API
+  (continuous, auto-restarting sessions); `hebrewNumbers.ts` parses Hebrew
+  number transcripts.
+- **`src/games/counting/`** — Count to the Sky: `CountJudge.ts` (pure game
+  logic), `Sky.ts` (DOM + inline SVG scenery and rocket), `Confetti.ts`
+  (canvas particles), `sounds.ts` (synthesized sounds), `CountingGame.ts`.
 
 Everything visual is procedural (no asset files yet), which keeps it easy to
 iterate on; real models/characters can replace pieces later. If CC0 assets are
