@@ -60,12 +60,21 @@ export class CountJudge {
         counted.push(c + 1, c + 2);
         c += 2;
         forgave = true;
-      } else if (x > c + 1) {
+      } else if (x > c + 1 && !farOff(x, c)) {
         return { counted, wrong: judge ? x : null, forgave };
       }
     }
     return { counted, wrong: null, forgave };
   }
+}
+
+/**
+ * A "wrong" number far beyond the count (1233 when at 2) is a transcript
+ * artifact — digits glued together — not a child's mistake; ignore it.
+ * Real slips stay close: a skipped number, or the wrong ten (29 → 40).
+ */
+function farOff(x: number, count: number): boolean {
+  return x > 2 * (count + 1) + 20;
 }
 
 /** Below this recognizer confidence a wrong number is ignored. */

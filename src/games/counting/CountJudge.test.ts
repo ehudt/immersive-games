@@ -68,6 +68,33 @@ describe('CountJudge', () => {
     expect(j.hear(['שבע'], true, 0).wrong).toBe(7);
   });
 
+  it('follows the iPhone log: cumulative, rewritten, glued digits', () => {
+    const j = new CountJudge();
+    const steps: [string[], boolean, number, number[]][] = [
+      [['\u200fאחרת'], false, 0, []],
+      [['\u200fאחת', '\u200fאכלת', '\u200fאחרת'], true, 0.21, [1]],
+      [['\u200fאחת'], false, 0, []],
+      [['\u200fאחת ש'], false, 0, []],
+      [['\u200fאחת שתיים'], false, 0, [2]],
+      [['\u200fאחת2 ש'], false, 0, []],
+      [['\u200f123'], false, 0, [3]],
+      [['\u200f123 ש'], false, 0, []],
+      [['\u200f1233'], false, 0, []],
+      [['\u200f1233'], true, 0.98, []],
+      [['\u200f12334'], false, 0, [4]],
+    ];
+    for (const [alts, final, conf, counted] of steps) expect(j.hear(alts, final, conf)).toEqual({ counted, wrong: null });
+    expect(j.count).toBe(4);
+  });
+
+  it('ignores impossible "wrong" numbers but not near slips', () => {
+    const j = new CountJudge();
+    j.count = 2;
+    expect(j.hear(['1999'], true).wrong).toBeNull();
+    j.count = 29;
+    expect(j.hear(['ארבעים'], true).wrong).toBe(40);
+  });
+
   it('picks the alternative that fits the count', () => {
     const j = new CountJudge();
     j.count = 5;

@@ -17,6 +17,13 @@ describe('parseNumbers', () => {
     expect(parseNumbers('123 124', 122)).toEqual([123, 124]);
   });
 
+  it('splits glued runs that resend numbers already counted (iOS)', () => {
+    expect(parseNumbers('\u200f123', 2)).toEqual([1, 2, 3]);
+    expect(parseNumbers('1233', 2)).toEqual([1, 2, 3, 3]);
+    expect(parseNumbers('12345', 3)).toEqual([1, 2, 3, 4, 5]);
+    expect(parseNumbers('אחת2 3', 1)).toEqual([1, 2, 3]);
+  });
+
   it('reads feminine and masculine units', () => {
     expect(parseNumbers('אחת שתיים שלוש ארבע חמש שש שבע שמונה תשע עשר')).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     expect(parseNumbers('אחד שניים שלושה ארבעה חמישה שישה שבעה שמונה תשעה עשרה')).toEqual([
@@ -124,6 +131,7 @@ describe('splitConsecutive', () => {
   it('splits only counting runs', () => {
     expect(splitConsecutive('1234')).toEqual([1, 2, 3, 4]);
     expect(splitConsecutive('99100')).toEqual([99, 100]);
+    expect(splitConsecutive('1233')).toEqual([1, 2, 3, 3]);
     expect(splitConsecutive('15')).toBeNull();
     expect(splitConsecutive('7')).toBeNull();
   });

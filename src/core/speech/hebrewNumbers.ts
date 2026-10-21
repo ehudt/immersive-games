@@ -173,11 +173,14 @@ interface Span {
   values: number[];
   /** Reading starts with a dangling "ו" ("ואחת" on its own) — unlikely. */
   odd: boolean;
-  /**
-   * A guess: a glued digit run split into several numbers, or a word that
-   * only sounds like a number. Taken only when it continues the count.
-   */
+  /** A word that only sounds like a number: taken only when it continues the count. */
   guess?: boolean;
+  /**
+   * A glued digit run split into several numbers ("123" → 1, 2, 3). Browsers
+   * resend the whole utterance, so it may start with numbers already counted;
+   * taken only when it starts at or before the next number.
+   */
+  split?: boolean;
 }
 
 type Part = { end: number; value: number };
@@ -250,21 +253,24 @@ function wordNumbers(items: (Item | null)[], i: number): Part[] {
   return out;
 }
 
-/** Splits a glued digit run ("123", "91011") into consecutive numbers, if it is one. */
+/**
+ * Splits a glued digit run ("123", "91011") into a counting run, if it is
+ * one. A number may repeat ("1233" → 1, 2, 3, 3): children (and transcripts)
+ * sometimes say one twice.
+ */
 export function splitConsecutive(digits: string): number[] | null {
+  if (digits[0] === '0') return null;
   for (let len = 1; len <= digits.length / 2; len++) {
-    if (digits[0] === '0') return null;
-    const seq: number[] = [];
     let n = Number(digits.slice(0, len));
-    let pos = 0;
+    const seq = [n];
+    let pos = len;
     while (pos < digits.length) {
-      const s = String(n);
-      if (!digits.startsWith(s, pos)) break;
+      if (digits.startsWith(String(n + 1), pos)) n++;
+      else if (!digits.startsWith(String(n), pos)) break;
       seq.push(n);
-      pos += s.length;
-      n++;
+      pos += String(n).length;
     }
-    if (pos === digits.length && seq.length > 1) return seq;
+    if (pos === digits.length) return seq;
   }
   return null;
 }
@@ -276,7 +282,7 @@ function spansAt(items: (Item | null)[], i: number): Span[] {
   if (it.kind === 'digits') {
     const spans: Span[] = [{ end: i + 1, values: [it.value], odd: false }];
     const split = splitConsecutive(String(it.value));
-    if (split) spans.push({ end: i + 1, values: split, odd: false, guess: true });
+    if (split) spans.push({ end: i + 1, values: split, odd: false, split: true });
     // "20 ו-1": digits followed by a unit.
     if (it.value % 10 === 0 && it.value >= 20 && it.value < 100 && isUnit(items[i + 1]) && items[i + 1]!.vav)
       spans.push({ end: i + 2, values: [it.value + items[i + 1]!.value], odd: false });
@@ -317,10 +323,12 @@ export function parseNumbers(text: string, last = 0): number[] {
       offer(i + 1, prev, st.steps, st.skipped + (items[i] ? 1 : 0), st.values);
       for (const span of spansAt(items, i)) {
         if (span.guess && span.values.some((v, k) => v !== prev + 1 + k)) continue;
+        if (span.split && span.values[0] > prev + 1) continue;
         let steps = st.steps - (span.odd ? 1 : 0);
         let p = prev;
         for (const v of span.values) {
-          if (v === p + 1) steps++;
+          // A split only earns its new numbers, so "123" after 122 stays 123.
+          if (v === p + 1 && (!span.split || v > last)) steps++;
           p = v;
         }
         offer(span.end, p, steps, st.skipped, [...st.values, ...span.values]);
