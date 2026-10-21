@@ -60,8 +60,11 @@ moon and Saturn into space. Each number leaves a colored star behind, with a
 "bloop" that climbs the scale; every ten gets a cheer and confetti.
 
 The game never asks for the next number. It ends when the child says a wrong
-number (e.g. skips one) or stays quiet for a while (about 6–8 s; 12 s for the
-first number); the rocket's flame shrinks as that time runs out, and each
+number (e.g. skips one) or stays quiet for a while. That "time to think" is a
+setting on the start card: *רגיל* 8 s, *ארוך* 12 s (default), *ארוך מאוד*
+20 s, plus extra for the first number and for numbers from 100 up. The clock
+stops while the recognizer restarts, and runs up to 6 s over while the child
+is still talking. The rocket's flame shrinks as the time runs out, and each
 number refuels it. Then there is a fanfare, cheering, fireworks and confetti,
 the result ("ספרת עד 37") and the record, plus "עוד פעם!" to try again.
 
@@ -73,14 +76,21 @@ the result ("ספרת עד 37") and the record, plus "עוד פעם!" to try aga
   return digits ("1 2 3", sometimes glued as "123") or words in either gender,
   with or without "ו" ("עשרים ואחת"), up to the thousands. Ambiguous phrases
   like "תשע עשר" (19, or 9 then 10) are resolved by picking the reading that
-  looks most like counting.
+  looks most like counting. Words that only *sound* like a number (misheard
+  or lisped: "אשר" for עשר, "סלוס" for שלוש) are matched by a sound key
+  (`soundKey`), but only accepted when they are the next number, so they
+  never cause a mistake.
 - **Judging** (`src/games/counting/CountJudge.ts`): interim results only move
   the count forward, for instant feedback; a wrong number counts only once the
   recognizer finalizes it. Numbers already counted are ignored (recognizers
-  repeat whole transcripts). A clipped first word ("שתיים" first) is forgiven.
-  The patience times are in `patienceMs`.
-- `?debug` shows every transcript and verdict, and has a box to type
-  transcripts by hand (works without a microphone).
+  repeat whole transcripts). The recognizer often misses the first word of a
+  session (at the start, or said during one of its restarts), so the first
+  number of each session may skip one. A wrong number the recognizer itself
+  is unsure of (confidence < 0.5) counts as misheard, not a mistake. The
+  patience times are in `PATIENCE`.
+- `?debug` shows every transcript (with confidence) and verdict, has a box to
+  type transcripts by hand (works without a microphone), and a *copy log*
+  button: paste the log into an issue when recognition misbehaves.
 
 ## Running it
 

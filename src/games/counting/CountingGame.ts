@@ -1,6 +1,6 @@
 import './counting.css';
 import { SpeechListener, type SpeechErrorKind } from '../../core/speech/SpeechListener';
-import { CountJudge, patienceMs } from './CountJudge';
+import { CountJudge, patienceMs, type Patience } from './CountJudge';
 import { Confetti } from './Confetti';
 import { Sky } from './Sky';
 import { CountingSfx } from './sounds';
@@ -12,9 +12,18 @@ export interface CountingOptions {
 
 type Phase = 'intro' | 'playing' | 'over';
 
-/** While words are still coming in, wait this much past the patience limit. */
-const SPEAKING_GRACE_MS = 3000;
+/** While words are still coming in, wait up to this much past the patience limit. */
+const SPEAKING_GRACE_MS = 6000;
+/** Speech heard this recently means the child is still talking. */
+const SPEAKING_MS = 1500;
 const BEST_KEY = 'counting.best';
+const PATIENCE_KEY = 'counting.patience';
+
+const PATIENCE_LABELS: [Patience, string][] = [
+  ['normal', 'רגיל'],
+  ['long', 'ארוך'],
+  ['xlong', 'ארוך מאוד'],
+];
 
 const PRAISE = ['כל הכבוד!', 'מעולה!', 'וואו!', 'איזה יופי!', 'מדהים!', 'אלופים!', 'יש!', 'סחתיין!'];
 
@@ -25,6 +34,15 @@ const ERRORS: Record<SpeechErrorKind, string> = {
   language: 'הדפדפן הזה לא מזהה דיבור בעברית. נסו בכרום.',
   other: 'משהו השתבש בזיהוי הדיבור. נסו שוב.',
 };
+
+function loadPatience(): Patience {
+  try {
+    const v = localStorage.getItem(PATIENCE_KEY);
+    return PATIENCE_LABELS.some(([p]) => p === v) ? (v as Patience) : 'long';
+  } catch {
+    return 'long';
+  }
+}
 
 function loadBest(): number {
   try {
@@ -66,6 +84,8 @@ export class CountingGame {
   private listener: SpeechListener | null = null;
   private phase: Phase = 'intro';
   private best = loadBest();
+  private patience = loadPatience();
+  private lastTick = 0;
   private listening = false;
   /** When the clock for the next number started (null until the mic is on). */
   private waitingSince: number | null = null;
@@ -153,9 +173,31 @@ export class CountingGame {
           ? ''
           : `<p class="c-warn">הדפדפן הזה לא תומך בזיהוי דיבור. כדי לשחק, פתחו את המשחק בכרום, באדג' או בספארי.</p>`
       }
+      <div class="c-patience" role="radiogroup" aria-label="זמן לחשוב">
+        <span>⏱️ זמן לחשוב:</span>
+        ${PATIENCE_LABELS.map(([p, label]) => `<button class="chip" role="radio" data-pat="${p}">${label}</button>`).join('')}
+      </div>
       <div class="c-buttons"><button data-act="go" ${supported || this.opts.debug ? '' : 'disabled'}>יוצאים לדרך!</button></div>
       <p class="c-note">המשחק משתמש במיקרופון. זיהוי הדיבור נעשה על ידי שירות הזיהוי המובנה של הדפדפן, בלי עלות.</p>`);
     this.button('go', () => this.play());
+    const chips = Array.from(this.ui.panel.querySelectorAll<HTMLElement>('[data-pat]'));
+    const mark = () =>
+      chips.forEach((c) => {
+        const on = c.dataset.pat === this.patience;
+        c.classList.toggle('on', on);
+        c.setAttribute('aria-checked', String(on));
+      });
+    for (const c of chips)
+      c.onclick = () => {
+        this.patience = c.dataset.pat as Patience;
+        try {
+          localStorage.setItem(PATIENCE_KEY, this.patience);
+        } catch {
+          /* private mode */
+        }
+        mark();
+      };
+    mark();
   }
 
   private play(): void {
@@ -174,8 +216,11 @@ export class CountingGame {
     this.setListening(false);
     if (SpeechListener.supported()) {
       this.listener ??= new SpeechListener({
-        onResult: (alts, final) => this.onSpeech(alts, final),
-        onListening: (on) => this.setListening(on),
+        onResult: (alts, final, confidence) => this.onSpeech(alts, final, confidence),
+        onListening: (on) => {
+          if (on) this.judge.newSession();
+          this.setListening(on);
+        },
         onError: (kind, detail) => this.onSpeechError(kind, detail),
       });
       this.listener.start();
@@ -184,6 +229,7 @@ export class CountingGame {
       this.setListening(true);
     }
     clearInterval(this.ticker);
+    this.lastTick = performance.now();
     this.ticker = window.setInterval(() => this.tick(), 100);
   }
 
@@ -268,12 +314,14 @@ export class CountingGame {
 
   // ------------------------------------------------------------- play
 
-  private onSpeech(alts: string[], final: boolean): void {
+  private onSpeech(alts: string[], final: boolean, confidence = 0): void {
     if (this.phase !== 'playing') return;
     this.lastSpeech = performance.now();
     this.ui.listen.classList.add('hearing');
-    const heard = this.judge.hear(alts, final);
-    this.debugLog(`${final ? 'FINAL' : 'interim'} ${alts.map((a) => JSON.stringify(a)).join(' | ')} → +[${heard.counted}]${heard.wrong !== null ? ` wrong ${heard.wrong}` : ''}`);
+    const heard = this.judge.hear(alts, final, confidence);
+    this.debugLog(
+      `${final ? `FINAL ${confidence.toFixed(2)}` : 'interim'} ${alts.map((a) => JSON.stringify(a)).join(' | ')} → +[${heard.counted}]${heard.wrong !== null ? ` wrong ${heard.wrong}` : ''}`,
+    );
     heard.counted.forEach((n, i) => (i === 0 ? this.onCount(n) : this.later(i * 140, () => this.onCount(n))));
     if (heard.counted.length) this.waitingSince = performance.now();
     if (heard.wrong !== null) this.later(heard.counted.length * 140 + 250, () => this.end(heard.wrong));
@@ -307,13 +355,20 @@ export class CountingGame {
     el.classList.add('show');
   }
 
-  /** The patience clock: no new number for too long means the child is stuck. */
+  /**
+   * The patience clock: no new number for too long means the child is stuck.
+   * It stops while the recognizer restarts between sessions (not the child's
+   * fault), and gives extra time while the child is still talking.
+   */
   private tick(): void {
-    if (this.phase !== 'playing' || this.waitingSince === null) return;
     const now = performance.now();
-    const limit = patienceMs(this.judge.count);
+    const dt = now - this.lastTick;
+    this.lastTick = now;
+    if (this.phase !== 'playing' || this.waitingSince === null) return;
+    if (!this.listening) this.waitingSince += dt;
+    const limit = patienceMs(this.judge.count, this.patience);
     const waited = now - this.waitingSince;
-    const speaking = now - this.lastSpeech < 1200;
+    const speaking = now - this.lastSpeech < SPEAKING_MS;
     if (!speaking) this.ui.listen.classList.remove('hearing');
     this.sky.setFuel(1 - waited / limit);
     if (waited > limit && !(speaking && waited < limit + SPEAKING_GRACE_MS)) this.end(null);
@@ -322,11 +377,10 @@ export class CountingGame {
   private setListening(on: boolean): void {
     this.listening = on;
     this.ui.listen.classList.toggle('on', on);
-    this.ui.listen.querySelector('.txt')!.textContent = on
-      ? this.judge.count === 0
-        ? 'מקשיבים… אפשר להתחיל לספור!'
-        : 'מקשיבים…'
-      : 'מדליקים את המיקרופון…';
+    // Between sessions (a moment) keep the text; only the mic icon dims.
+    const started = this.waitingSince !== null;
+    this.ui.listen.querySelector('.txt')!.textContent =
+      on || started ? (this.judge.count === 0 ? 'מקשיבים… אפשר להתחיל לספור!' : 'מקשיבים…') : 'מדליקים את המיקרופון…';
     // The clock starts once the mic really listens (after the permission prompt).
     if (on && this.phase === 'playing' && this.waitingSince === null) this.waitingSince = performance.now();
   }
@@ -343,7 +397,7 @@ export class CountingGame {
     }
     p.innerHTML = `<div class="c-card">${html}</div>`;
     p.classList.add('show');
-    this.later(50, () => p.querySelector<HTMLElement>('button:not([disabled])')?.focus());
+    this.later(50, () => p.querySelector<HTMLElement>('button[data-act]:not([disabled])')?.focus());
   }
 
   private button(act: string, fn: () => void): void {
@@ -394,7 +448,15 @@ export class CountingGame {
   private setupDebug(): void {
     const d = this.ui.debug;
     d.classList.add('show');
-    d.innerHTML = `<form><input placeholder="type a transcript, e.g. אחת שתיים" /><label><input type="checkbox" checked /> final</label></form><pre></pre>`;
+    d.innerHTML = `<form><input placeholder="type a transcript, e.g. אחת שתיים" /><label><input type="checkbox" checked /> final</label><button type="button" class="copy">copy log</button></form><pre></pre>`;
+    const copy = d.querySelector<HTMLElement>('.copy')!;
+    copy.onclick = () => {
+      const text = `Count to the Sky log (${navigator.userAgent})\n${this.log.join('\n')}`;
+      navigator.clipboard?.writeText(text).then(
+        () => (copy.textContent = 'copied ✓'),
+        () => (copy.textContent = 'copy failed'),
+      );
+    };
     const form = d.querySelector('form')!;
     const [text, final] = Array.from(form.querySelectorAll('input'));
     form.onsubmit = (e) => {
@@ -406,9 +468,10 @@ export class CountingGame {
 
   private debugLog(line: string): void {
     if (!this.opts.debug) return;
-    this.log.push(line);
-    this.log = this.log.slice(-14);
+    this.log.push(`${(performance.now() / 1000).toFixed(1)}s ${line}`);
+    this.log = this.log.slice(-400);
     this.ui.debug.querySelector('pre')!.textContent =
-      `count=${this.judge.count} listening=${this.listening} phase=${this.phase}\n` + this.log.join('\n');
+      `count=${this.judge.count} listening=${this.listening} phase=${this.phase} patience=${this.patience}\n` +
+      this.log.slice(-14).join('\n');
   }
 }

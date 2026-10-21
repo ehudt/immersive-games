@@ -10,6 +10,7 @@
 // Minimal typings: lib.dom does not cover the prefixed constructor.
 interface RecognitionAlternative {
   transcript: string;
+  confidence: number;
 }
 interface RecognitionResult {
   readonly isFinal: boolean;
@@ -37,9 +38,12 @@ type RecognitionCtor = new () => Recognition;
 export type SpeechErrorKind = 'not-allowed' | 'no-microphone' | 'network' | 'language' | 'other';
 
 export interface SpeechCallbacks {
-  /** One recognition result: alternative transcripts (best first). */
-  onResult(alternatives: string[], final: boolean): void;
-  /** Recognition is (re)listening, or stopped between sessions. */
+  /**
+   * One recognition result: alternative transcripts (best first), and the
+   * best one's confidence (0..1; 0 when the browser doesn't say).
+   */
+  onResult(alternatives: string[], final: boolean, confidence: number): void;
+  /** Recognition is (re)listening — a new session — or stopped between sessions. */
   onListening?(listening: boolean): void;
   /** A problem restarting will not fix; listening has stopped. */
   onError(kind: SpeechErrorKind, detail: string): void;
@@ -111,7 +115,7 @@ export class SpeechListener {
         const r = e.results[i];
         const alts: string[] = [];
         for (let k = 0; k < r.length; k++) alts.push(r[k].transcript);
-        this.cb.onResult(alts, r.isFinal);
+        this.cb.onResult(alts, r.isFinal, r.length ? r[0].confidence || 0 : 0);
       }
     };
     rec.onerror = (e) => {

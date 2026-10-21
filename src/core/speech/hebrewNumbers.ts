@@ -26,6 +26,8 @@ interface Item {
   value: number;
   /** Written with the "ו" (and) prefix. */
   vav: boolean;
+  /** Not a number word, only sounds like one ("אשר" for "עשר"). */
+  fuzzy?: boolean;
 }
 
 const WORDS: Record<string, [Kind, number]> = {};
@@ -65,6 +67,38 @@ words('construct', 8, 'שמונת');
 words('construct', 9, 'תשעת');
 words('construct', 10, 'עשרת');
 
+/**
+ * A rough sound key for a Hebrew word, so misheard or mispronounced number
+ * words still match: final letters → regular, letters that sound alike merge
+ * (ח/כ/ק, ט/ת, ס/ש — the last also covers a child's lisp), and the silent or
+ * vowel letters א ה ע ו י are dropped. "עשר", "אשר" and "אסר" all become "שר".
+ */
+export function soundKey(word: string): string {
+  const map: Record<string, string> = { ם: 'מ', ן: 'נ', ץ: 'צ', ף: 'פ', ך: 'כ', ח: 'כ', ק: 'כ', ט: 'ת', ס: 'ש' };
+  return [...word]
+    .map((c) => map[c] ?? c)
+    .filter((c) => !'אהעוי'.includes(c))
+    .join('');
+}
+
+/** Sound key → number word, for units and tens only (short keys and clashes left out). */
+const SOUNDS: Record<string, [Kind, number]> = {};
+{
+  const clash = new Set<string>();
+  for (const [word, [kind, value]] of Object.entries(WORDS)) {
+    if (kind !== 'unit' && kind !== 'ten' && kind !== 'tens') continue;
+    const key = soundKey(word);
+    if (key.length < 2) continue;
+    const prev = SOUNDS[key];
+    if (prev && prev[1] !== value) clash.add(key);
+    SOUNDS[key] = [kind, value];
+  }
+  for (const key of clash) delete SOUNDS[key];
+}
+
+/** Mishearings too short for a sound key. */
+const ALIASES: Record<string, [Kind, number]> = { את: ['unit', 1] };
+
 /** Niqqud, cantillation and the geresh/gershayim marks. */
 const MARKS = /[֑-ׇ׳״]/g;
 
@@ -72,6 +106,11 @@ function lookup(word: string, vav: boolean): Item | null {
   if (/^\d+$/.test(word)) return { kind: 'digits', value: Number(word), vav };
   const w = WORDS[word];
   return w ? { kind: w[0], value: w[1], vav } : null;
+}
+
+function soundsLike(word: string, vav: boolean): Item | null {
+  const w = ALIASES[word] ?? SOUNDS[soundKey(word)];
+  return w ? { kind: w[0], value: w[1], vav, fuzzy: true } : null;
 }
 
 /** Splits a transcript into number items; anything else becomes null (a gap). */
@@ -96,8 +135,12 @@ export function tokenize(text: string): (Item | null)[] {
         pendingVav = true;
         continue;
       }
-      let item = lookup(part, pendingVav);
-      if (!item && part.startsWith('ו') && part.length > 1) item = lookup(part.slice(1), true);
+      const vav = part.startsWith('ו') && part.length > 1;
+      const item =
+        lookup(part, pendingVav) ??
+        (vav ? lookup(part.slice(1), true) : null) ??
+        (vav ? soundsLike(part.slice(1), true) : null) ??
+        soundsLike(part, pendingVav);
       out.push(item);
       pendingVav = false;
     }
@@ -110,8 +153,11 @@ interface Span {
   values: number[];
   /** Reading starts with a dangling "ו" ("ואחת" on its own) — unlikely. */
   odd: boolean;
-  /** A glued digit run read as several numbers: only plausible as the next count. */
-  split?: boolean;
+  /**
+   * A guess: a glued digit run split into several numbers, or a word that
+   * only sounds like a number. Taken only when it continues the count.
+   */
+  guess?: boolean;
 }
 
 type Part = { end: number; value: number };
@@ -209,13 +255,18 @@ function spansAt(items: (Item | null)[], i: number): Span[] {
   if (it.kind === 'digits') {
     const spans: Span[] = [{ end: i + 1, values: [it.value], odd: false }];
     const split = splitConsecutive(String(it.value));
-    if (split) spans.push({ end: i + 1, values: split, odd: false, split: true });
+    if (split) spans.push({ end: i + 1, values: split, odd: false, guess: true });
     // "20 ו-1": digits followed by a unit.
     if (it.value % 10 === 0 && it.value >= 20 && it.value < 100 && isUnit(items[i + 1]) && items[i + 1]!.vav)
       spans.push({ end: i + 2, values: [it.value + items[i + 1]!.value], odd: false });
     return spans;
   }
-  return wordNumbers(items, i).map((p) => ({ end: p.end, values: [p.value], odd: it.vav }));
+  return wordNumbers(items, i).map((p) => ({
+    end: p.end,
+    values: [p.value],
+    odd: it.vav,
+    guess: items.slice(i, p.end).some((x) => x?.fuzzy),
+  }));
 }
 
 /**
@@ -244,7 +295,7 @@ export function parseNumbers(text: string, last = 0): number[] {
       // Leave this item unread (free if it isn't a number word at all).
       offer(i + 1, prev, st.steps, st.skipped + (items[i] ? 1 : 0), st.values);
       for (const span of spansAt(items, i)) {
-        if (span.split && span.values[0] !== prev + 1) continue;
+        if (span.guess && span.values.some((v, k) => v !== prev + 1 + k)) continue;
         let steps = st.steps - (span.odd ? 1 : 0);
         let p = prev;
         for (const v of span.values) {

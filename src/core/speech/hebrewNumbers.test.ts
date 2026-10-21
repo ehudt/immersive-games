@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseNumbers, splitConsecutive } from './hebrewNumbers';
+import { parseNumbers, soundKey, splitConsecutive } from './hebrewNumbers';
 
 describe('parseNumbers', () => {
   it('reads digits', () => {
@@ -76,6 +76,29 @@ describe('parseNumbers', () => {
 
   it('handles cumulative (repeated) transcripts', () => {
     expect(parseNumbers('אחת אחת שתיים אחת שתיים שלוש')).toEqual([1, 1, 2, 1, 2, 3]);
+  });
+});
+
+describe('sound-alike words', () => {
+  it('accepts misheard or lisped number words that continue the count', () => {
+    expect(parseNumbers('תשע אשר', 8)).toEqual([9, 10]);
+    expect(parseNumbers('סלוס', 2)).toEqual([3]);
+    expect(parseNumbers('ארבה חמס סס', 3)).toEqual([4, 5, 6]);
+    expect(parseNumbers('עסרים ואחת', 20)).toEqual([21]);
+    expect(parseNumbers('את שתיים', 0)).toEqual([1, 2]);
+    expect(parseNumbers('שיר', 9)).toEqual([10]);
+  });
+
+  it('never reads them as a wrong number', () => {
+    // "רבה" sounds like 4, but after 2 it is just a word.
+    expect(parseNumbers('תודה רבה', 2)).toEqual([]);
+    expect(parseNumbers('שיר', 3)).toEqual([]);
+  });
+
+  it('gives sound keys', () => {
+    expect(soundKey('עשר')).toBe(soundKey('אשר'));
+    expect(soundKey('שלוש')).toBe(soundKey('שלש'));
+    expect(soundKey('שתיים')).toBe(soundKey('סתים'));
   });
 });
 

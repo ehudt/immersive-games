@@ -18,47 +18,84 @@ export interface Heard {
  */
 export class CountJudge {
   count = 0;
+  /** A new recognition session started and nothing was counted in it yet. */
+  private freshSession = true;
 
-  /** `alternatives`: the recognizer's guesses for one result, best first. */
-  hear(alternatives: string[], final: boolean): Heard {
-    let best: Heard | null = null;
-    for (const text of alternatives) {
-      const h = this.simulate(text, final);
-      if (!best || score(h) > score(best)) best = h;
-    }
-    best ??= { counted: [], wrong: null };
-    if (best.counted.length) this.count = best.counted[best.counted.length - 1];
-    return best;
+  /**
+   * The recognizer (re)started listening. It often misses the first word of
+   * a session (while it warms up, or said in the gap of a restart), so the
+   * first number heard may skip one.
+   */
+  newSession(): void {
+    this.freshSession = true;
   }
 
-  private simulate(text: string, final: boolean): Heard {
+  /**
+   * `alternatives`: the recognizer's guesses for one result, best first.
+   * `confidence` (0..1, 0 = unknown): a low-confidence wrong number is
+   * treated as misheard, not as a mistake.
+   */
+  hear(alternatives: string[], final: boolean, confidence = 0): Heard {
+    let best: Guess | null = null;
+    for (const text of alternatives) {
+      const h = this.simulate(text, final && !(confidence > 0 && confidence < MIN_CONFIDENCE));
+      if (!best || score(h) > score(best)) best = h;
+    }
+    if (!best) return { counted: [], wrong: null };
+    if (best.counted.length) {
+      this.count = best.counted[best.counted.length - 1];
+      this.freshSession = false;
+    }
+    return { counted: best.counted, wrong: best.wrong };
+  }
+
+  private simulate(text: string, judge: boolean): Guess {
     const counted: number[] = [];
+    let forgave = false;
     let c = this.count;
     for (const x of parseNumbers(text, c)) {
       if (x === c + 1) {
         counted.push(++c);
-      } else if (x === 2 && c === 0) {
-        // The recognizer often clips the very first word while it warms up.
-        counted.push(1, 2);
-        c = 2;
+      } else if (x === c + 2 && this.freshSession && !counted.length) {
+        counted.push(c + 1, c + 2);
+        c += 2;
+        forgave = true;
       } else if (x > c + 1) {
-        return { counted, wrong: final ? x : null };
+        return { counted, wrong: judge ? x : null, forgave };
       }
     }
-    return { counted, wrong: null };
+    return { counted, wrong: null, forgave };
   }
 }
 
-/** A guess without a mistake beats one with; then the one counting further. */
-function score(h: Heard): number {
-  return (h.wrong === null ? 1e6 : 0) + h.counted.length;
+/** Below this recognizer confidence a wrong number is ignored. */
+const MIN_CONFIDENCE = 0.5;
+
+type Guess = Heard & { forgave: boolean };
+
+/**
+ * A guess without a mistake beats one with; then the one counting further,
+ * where a forgiven missing number counts less than one actually heard.
+ */
+function score(h: Guess): number {
+  return (h.wrong === null ? 1e6 : 0) + h.counted.length - (h.forgave ? 1.5 : 0);
 }
+
+export type Patience = 'normal' | 'long' | 'xlong';
+
+/** Seconds to think: [before the first number, between numbers]. */
+const PATIENCE: Record<Patience, [number, number]> = {
+  normal: [15, 8],
+  long: [20, 12],
+  xlong: [30, 20],
+};
 
 /**
  * How long the child may stay quiet before we decide they don't know the next
  * number. Generous at the start, and longer for long numbers ("מאה עשרים ושלוש").
  */
-export function patienceMs(count: number): number {
-  if (count === 0) return 12000;
-  return count < 20 ? 6000 : count < 100 ? 7000 : 8500;
+export function patienceMs(count: number, level: Patience = 'long'): number {
+  const [first, between] = PATIENCE[level];
+  if (count === 0) return first * 1000;
+  return (between + (count >= 100 ? 2 : 0)) * 1000;
 }

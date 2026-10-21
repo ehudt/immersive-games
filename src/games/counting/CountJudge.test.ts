@@ -46,6 +46,28 @@ describe('CountJudge', () => {
     expect(j.hear(['שתיים שלוש'], true).counted).toEqual([1, 2, 3]);
   });
 
+  it('forgives one number lost when the recognizer restarts', () => {
+    const j = new CountJudge();
+    j.hear(['1 2 3 4 5'], true);
+    // Same session: a skip is a mistake.
+    expect(new CountJudge().hear(['1 2 3 5'], true).wrong).toBe(5);
+    j.newSession();
+    expect(j.hear(['שבע שמונה'], true)).toEqual({ counted: [6, 7, 8], wrong: null });
+    // Only the first number of the session, and only one.
+    expect(j.hear(['עשר'], true).wrong).toBe(10);
+    j.newSession();
+    expect(j.hear(['אחת עשרה'], true).wrong).toBe(11);
+  });
+
+  it('treats a low-confidence wrong number as misheard', () => {
+    const j = new CountJudge();
+    j.hear(['1 2 3'], true, 0.9);
+    expect(j.hear(['שבע'], true, 0.3)).toEqual({ counted: [], wrong: null });
+    expect(j.hear(['שבע'], true, 0.8).wrong).toBe(7);
+    // 0 means the browser didn't say: judge normally.
+    expect(j.hear(['שבע'], true, 0).wrong).toBe(7);
+  });
+
   it('picks the alternative that fits the count', () => {
     const j = new CountJudge();
     j.count = 5;
@@ -55,5 +77,7 @@ describe('CountJudge', () => {
   it('gives more time for the first and for long numbers', () => {
     expect(patienceMs(0)).toBeGreaterThan(patienceMs(5));
     expect(patienceMs(150)).toBeGreaterThan(patienceMs(5));
+    expect(patienceMs(5, 'xlong')).toBeGreaterThan(patienceMs(5, 'normal'));
+    expect(patienceMs(5)).toBe(12000);
   });
 });

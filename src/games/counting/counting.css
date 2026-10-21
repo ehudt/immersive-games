@@ -672,6 +672,33 @@
   font-size: 1.05rem;
 }
 
+.c-patience {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0.9rem 0 0;
+  font-size: 1rem;
+  color: #4d4673;
+}
+.c-patience > span {
+  flex-basis: 100%;
+}
+.counting .chip {
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.3em 0.9em;
+  color: var(--plum);
+  background: #eef1ff;
+  box-shadow: 0 3px 0 #c6cbe8;
+}
+.counting .chip.on {
+  color: #fff;
+  background: var(--teal);
+  box-shadow: 0 3px 0 #1d8f9c;
+}
+
 /* ----------------------------------------------------------- debug */
 
 .c-debug {
@@ -695,6 +722,14 @@
   display: flex;
   gap: 6px;
   align-items: center;
+}
+.counting .c-debug button {
+  font: inherit;
+  padding: 3px 8px;
+  border-radius: 6px;
+  color: #10183a;
+  background: #cfe3ff;
+  box-shadow: none;
 }
 .c-debug input:not([type]) {
   flex: 1;
