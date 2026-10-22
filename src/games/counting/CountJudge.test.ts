@@ -119,6 +119,29 @@ describe('CountJudge', () => {
     }
   });
 
+  it('follows the third iPhone log: "תשע עשר" as 19, then "19:10"', () => {
+    const j = new CountJudge();
+    const steps: [string, boolean, number, number[]][] = [
+      ['\u200fאחת', false, 0, [1]],
+      ['\u200fאחת ש', false, 0, []],
+      ['\u200fאחת שתיים', false, 0, [2]],
+      ['\u200fאחת2 ש', false, 0, []],
+      ['\u200f123', false, 0, [3]],
+      ['\u200f1234', false, 0, [4]],
+      ['\u200f12345', false, 0, [5]],
+      ['\u200f123456', false, 0, [6]],
+      ['\u200f1234567', false, 0, [7]],
+      ['\u200f1234567 ש', false, 0, []],
+      ['\u200f12345678', false, 0, [8]],
+      ['\u200f123456789', false, 0, [9]],
+      ['\u200f12345678 19', false, 0, [10]],
+      ['\u200f12345678 19:10', false, 0, []],
+      ['\u200f12345678 19:10', true, 0.97, []],
+      ['\u200f12345678 19:10 11', false, 0, [11]],
+    ];
+    for (const [text, final, conf, counted] of steps) expect(j.hear([text], final, conf)).toEqual({ counted, wrong: null });
+  });
+
   it('ignores impossible "wrong" numbers but not near slips', () => {
     const j = new CountJudge();
     j.count = 2;
