@@ -105,6 +105,20 @@ describe('CountJudge', () => {
     expect(j.hear(['\u200f1234568'], true, 0.99)).toEqual({ counted: [], wrong: 8 });
   });
 
+  it('counts 10 when iOS writes "…תשע עשר" as 19', () => {
+    for (const [count, text] of [
+      [8, '19'],
+      [9, '19'],
+      [8, '\u200f12345678 19'],
+      [9, '\u200f1234567819'],
+    ] as const) {
+      const j = new CountJudge();
+      j.hear([Array.from({ length: count }, (_, k) => k + 1).join(' ')], true);
+      expect(j.hear([text], true, 0.9).wrong).toBeNull();
+      expect(j.count).toBe(10);
+    }
+  });
+
   it('ignores impossible "wrong" numbers but not near slips', () => {
     const j = new CountJudge();
     j.count = 2;

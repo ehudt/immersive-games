@@ -29,6 +29,16 @@ describe('parseNumbers', () => {
     expect(parseNumbers('12345689', 6)).toEqual([1, 2, 3, 4, 5, 6, 8, 9]);
   });
 
+  it('reads "19" as 9, 10 where those come next (iOS writes "תשע עשר" as 19)', () => {
+    expect(parseNumbers('19', 8)).toEqual([9, 10]);
+    expect(parseNumbers('19', 9)).toEqual([9, 10]);
+    expect(parseNumbers('\u200f12345678 19', 9)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(parseNumbers('\u200f1234567819', 9)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(parseNumbers('\u200f123456781911', 10)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    expect(parseNumbers('19', 18)).toEqual([19]);
+    expect(parseNumbers('18 19', 17)).toEqual([18, 19]);
+  });
+
   it('leaves ordinary numbers whole', () => {
     expect(parseNumbers('15', 14)).toEqual([15]);
     expect(parseNumbers('25', 24)).toEqual([25]);

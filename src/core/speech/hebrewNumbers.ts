@@ -269,6 +269,13 @@ export function splitConsecutive(digits: string): number[] | null {
     const seq = [n];
     let pos = len;
     while (pos < digits.length) {
+      if (n === 8 && digits.startsWith('19', pos) && !digits.startsWith('9', pos)) {
+        // "תשע, עשר" written as 19 (see spansAt).
+        seq.push(9, 10);
+        n = 10;
+        pos += 2;
+        continue;
+      }
       if (digits.startsWith(String(n + 1), pos)) n++;
       else if (!digits.startsWith(String(n), pos)) break;
       seq.push(n);
@@ -296,6 +303,9 @@ function spansAt(items: (Item | null)[], i: number): Span[] {
     const spans: Span[] = [{ end: i + 1, values: [it.value], odd: false }];
     const split = splitConsecutive(String(it.value));
     if (split) spans.push({ end: i + 1, values: split, odd: false, split: true });
+    // "תשע, עשר" (9, 10) said quickly is also how 19 sounds, and iOS writes
+    // it as "19". Taken as 9, 10 only where those come next.
+    if (it.value === 19) spans.push({ end: i + 1, values: [9, 10], odd: false, split: true });
     // "20 ו-1": digits followed by a unit.
     if (it.value % 10 === 0 && it.value >= 20 && it.value < 100 && isUnit(items[i + 1]) && items[i + 1]!.vav)
       spans.push({ end: i + 2, values: [it.value + items[i + 1]!.value], odd: false });
