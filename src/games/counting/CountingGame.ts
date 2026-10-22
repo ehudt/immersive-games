@@ -166,7 +166,7 @@ export class CountingGame {
     this.ui.listen.classList.remove('show');
     this.panel(`
       <h1 class="c-title">סופרים עד השמיים</h1>
-      <p class="c-lead">סופרים בקול כמה שיותר גבוה:<br/><b>אחת, שתיים, שלוש…</b></p>
+      <p class="c-lead">סופרים בקול רם, עד המספר הכי גבוה שאפשר:<br/><b>אחת, שתיים, שלוש…</b></p>
       <p class="c-sub">כל מספר נכון מקפיץ את הרקטה למעלה 🚀<br/>טעינו או נתקענו? המשחק נגמר ואפשר לנסות שוב.</p>
       ${
         supported
