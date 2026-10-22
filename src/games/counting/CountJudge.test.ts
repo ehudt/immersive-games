@@ -87,6 +87,24 @@ describe('CountJudge', () => {
     expect(j.count).toBe(4);
   });
 
+  it('follows the second iPhone log: a skip inside a glued run', () => {
+    const j = new CountJudge();
+    const steps: [string, boolean, number, number[]][] = [
+      ['\u200fאחד', false, 0, [1]],
+      ['\u200fאחד ש', false, 0, []],
+      ['\u200fאחד שתיים', false, 0, [2]],
+      ['\u200f123', false, 0, [3]],
+      ['\u200f1234', false, 0, [4]],
+      ['\u200f12345', false, 0, [5]],
+      ['\u200f123456', false, 0, [6]],
+      ['\u200f123456 ש', false, 0, []],
+      ['\u200f1234568', false, 0, []],
+    ];
+    for (const [text, final, conf, counted] of steps) expect(j.hear([text], final, conf)).toEqual({ counted, wrong: null });
+    // 7 was skipped: caught as soon as the recognizer finalizes it.
+    expect(j.hear(['\u200f1234568'], true, 0.99)).toEqual({ counted: [], wrong: 8 });
+  });
+
   it('ignores impossible "wrong" numbers but not near slips', () => {
     const j = new CountJudge();
     j.count = 2;

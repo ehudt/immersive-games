@@ -24,6 +24,20 @@ describe('parseNumbers', () => {
     expect(parseNumbers('אחת2 3', 1)).toEqual([1, 2, 3]);
   });
 
+  it('keeps a skip inside a glued run (iOS)', () => {
+    expect(parseNumbers('\u200f1234568', 6)).toEqual([1, 2, 3, 4, 5, 6, 8]);
+    expect(parseNumbers('12345689', 6)).toEqual([1, 2, 3, 4, 5, 6, 8, 9]);
+  });
+
+  it('leaves ordinary numbers whole', () => {
+    expect(parseNumbers('15', 14)).toEqual([15]);
+    expect(parseNumbers('25', 24)).toEqual([25]);
+    expect(parseNumbers('1011', 9)).toEqual([10, 11]);
+    expect(parseNumbers('2021', 19)).toEqual([20, 21]);
+    expect(parseNumbers('100101', 99)).toEqual([100, 101]);
+    expect(parseNumbers('124', 123)).toEqual([124]);
+  });
+
   it('reads feminine and masculine units', () => {
     expect(parseNumbers('אחת שתיים שלוש ארבע חמש שש שבע שמונה תשע עשר')).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     expect(parseNumbers('אחד שניים שלושה ארבעה חמישה שישה שבעה שמונה תשעה עשרה')).toEqual([
@@ -132,6 +146,7 @@ describe('splitConsecutive', () => {
     expect(splitConsecutive('1234')).toEqual([1, 2, 3, 4]);
     expect(splitConsecutive('99100')).toEqual([99, 100]);
     expect(splitConsecutive('1233')).toEqual([1, 2, 3, 3]);
+    expect(splitConsecutive('1234568')).toEqual([1, 2, 3, 4, 5, 6, 8]);
     expect(splitConsecutive('15')).toBeNull();
     expect(splitConsecutive('7')).toBeNull();
   });

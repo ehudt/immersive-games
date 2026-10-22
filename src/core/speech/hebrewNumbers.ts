@@ -256,11 +256,15 @@ function wordNumbers(items: (Item | null)[], i: number): Part[] {
 /**
  * Splits a glued digit run ("123", "91011") into a counting run, if it is
  * one. A number may repeat ("1233" → 1, 2, 3, 3): children (and transcripts)
- * sometimes say one twice.
+ * sometimes say one twice. A run may also break off and go on from another
+ * number ("1234568" → 1…6, 8): that is a child skipping one, which must still
+ * be heard as a skip.
  */
 export function splitConsecutive(digits: string): number[] | null {
-  if (digits[0] === '0') return null;
-  for (let len = 1; len <= digits.length / 2; len++) {
+  if (!digits || digits[0] === '0') return null;
+  // Longest counting run from the start, for each length of its first number.
+  const runs: { seq: number[]; pos: number }[] = [];
+  for (let len = 1; len <= Math.min(4, digits.length); len++) {
     let n = Number(digits.slice(0, len));
     const seq = [n];
     let pos = len;
@@ -270,7 +274,16 @@ export function splitConsecutive(digits: string): number[] | null {
       seq.push(n);
       pos += String(n).length;
     }
-    if (pos === digits.length) return seq;
+    if (seq.length > 1 && pos === digits.length) return seq;
+    runs.push({ seq, pos });
+  }
+  // A run of at least two, then the rest: another run, or one short number.
+  for (const { seq, pos } of runs) {
+    if (seq.length < 2) continue;
+    const rest = digits.slice(pos);
+    if (rest[0] === '0') continue;
+    const tail = splitConsecutive(rest) ?? (rest.length <= 3 ? [Number(rest)] : null);
+    if (tail) return [...seq, ...tail];
   }
   return null;
 }
@@ -307,20 +320,21 @@ function spansAt(items: (Item | null)[], i: number): Span[] {
 export function parseNumbers(text: string, last = 0): number[] {
   const items = tokenize(text);
   const n = items.length;
-  type State = { rank: number; values: number[] };
-  const rank = (steps: number, skipped: number, count: number) => (steps - 1.5 * skipped) * 1e4 - count;
+  type State = { rank: number; steps: number; skipped: number; weight: number; values: number[] };
+  const rank = (steps: number, skipped: number, weight: number) => (steps - 1.5 * skipped) * 1e4 - weight;
   // best[i]: best reading of items[0..i), keyed by the last number read.
-  const best: Map<number, State & { steps: number; skipped: number }>[] = Array.from({ length: n + 1 }, () => new Map());
-  best[0].set(last, { rank: 0, steps: 0, skipped: 0, values: [] });
-  const offer = (i: number, key: number, steps: number, skipped: number, values: number[]) => {
-    const r = rank(steps, skipped, values.length);
+  const best: Map<number, State>[] = Array.from({ length: n + 1 }, () => new Map());
+  best[0].set(last, { rank: 0, steps: 0, skipped: 0, weight: 0, values: [] });
+  /** `weight`: how many numbers the reading claims (fewer, longer ones win ties). */
+  const offer = (i: number, key: number, steps: number, skipped: number, weight: number, values: number[]) => {
+    const r = rank(steps, skipped, weight);
     const cur = best[i].get(key);
-    if (!cur || r > cur.rank) best[i].set(key, { rank: r, steps, skipped, values });
+    if (!cur || r > cur.rank) best[i].set(key, { rank: r, steps, skipped, weight, values });
   };
   for (let i = 0; i < n; i++) {
     for (const [prev, st] of best[i]) {
       // Leave this item unread (free if it isn't a number word at all).
-      offer(i + 1, prev, st.steps, st.skipped + (items[i] ? 1 : 0), st.values);
+      offer(i + 1, prev, st.steps, st.skipped + (items[i] ? 1 : 0), st.weight, st.values);
       for (const span of spansAt(items, i)) {
         if (span.guess && span.values.some((v, k) => v !== prev + 1 + k)) continue;
         if (span.split && span.values[0] > prev + 1) continue;
@@ -331,7 +345,10 @@ export function parseNumbers(text: string, last = 0): number[] {
           if (v === p + 1 && (!span.split || v > last)) steps++;
           p = v;
         }
-        offer(span.end, p, steps, st.skipped, [...st.values, ...span.values]);
+        // A split's resent numbers weigh nothing, and on a tie it beats one
+        // huge number ("1234568" is 1…6, 8, not a million).
+        const weight = span.split ? span.values.filter((v) => v > last).length - 0.5 : span.values.length;
+        offer(span.end, p, steps, st.skipped, st.weight + weight, [...st.values, ...span.values]);
       }
     }
   }
