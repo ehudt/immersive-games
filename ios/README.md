@@ -41,7 +41,7 @@ simulator with a working microphone.
     (`counting.best` / `counting.patience` in UserDefaults, as on the web).
   - `Services/` — `AppleSpeechService` (`SFSpeechRecognizer`, he-IL, restarted
     session after session), a `ScriptedSpeechService` for typed transcripts,
-    synthesized sounds and the Hebrew narrator.
+    synthesized sounds (no spoken voice lines).
   - `UI/` — the sky, cards, confetti and styles. Fonts: Varela Round (Hebrew)
     and Fredoka (digits), both OFL, bundled in `Fonts/`.
   - `Assets.xcassets/Art/` — the web's drawings (rocket, clouds, Saturn…) as

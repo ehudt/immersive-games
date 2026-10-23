@@ -177,22 +177,3 @@ private final class Synth: @unchecked Sendable {
         for b in buffers.dropFirst() { b.mData?.copyMemory(from: out, byteCount: Int(b.mDataByteSize)) }
     }
 }
-
-/// Reads the result out loud, if the device has a Hebrew voice.
-@MainActor
-final class Narrator {
-    private let synth = AVSpeechSynthesizer()
-
-    func say(_ text: String) {
-        guard let voice = AVSpeechSynthesisVoice(language: "he-IL") else { return }
-        let u = AVSpeechUtterance(string: text)
-        u.voice = voice
-        u.rate = AVSpeechUtteranceDefaultSpeechRate * 0.95
-        u.pitchMultiplier = 1.15
-        synth.speak(u)
-    }
-
-    func stop() {
-        synth.stopSpeaking(at: .immediate)
-    }
-}

@@ -54,10 +54,7 @@ final class CountingGameModel {
     }
     private(set) var best: Int
     var muted = false {
-        didSet {
-            sfx.muted = muted
-            if muted { narrator.stop() }
-        }
+        didSet { sfx.muted = muted }
     }
 
     let speechSupported: Bool
@@ -66,7 +63,6 @@ final class CountingGameModel {
 
     private let speech: SpeechService
     private let sfx = SoundService()
-    private let narrator = Narrator()
     private let defaults: UserDefaults
     private var judge = CountJudge()
     /// When the clock for the next number started (nil until the mic is on).
@@ -106,7 +102,6 @@ final class CountingGameModel {
     // ----------------------------------------------------------- screens
 
     func play() {
-        narrator.stop()
         cancelPending()
         judge = CountJudge()
         count = 0
@@ -127,7 +122,6 @@ final class CountingGameModel {
 
     func exitToIntro() {
         stopPlaying()
-        narrator.stop()
         cancelPending()
         // Back to the launch pad.
         count = 0
@@ -152,10 +146,6 @@ final class CountingGameModel {
         sfx.victory()
         emit(.finished(record: record))
         phase = .over(Result(count: n, wrong: wrong, record: record))
-        later(1.7) { [weak self] in
-            guard let self, !self.muted, case .over = self.phase else { return }
-            self.narrator.say("כל הכבוד! ספרת עד \(n)!")
-        }
     }
 
     private func stopPlaying() {
