@@ -54,8 +54,11 @@ describe('decorations', () => {
     expect(decorations(301)).toEqual([]);
   });
 
-  it('puts friends on the right, clear of the rocket', () => {
-    for (const m of MILESTONES) expect(decorations(m.count)[0].left).toBeGreaterThanOrEqual(77);
+  it('puts friends on the right, clear of the rocket and of the scenery beside them', () => {
+    for (const m of MILESTONES) {
+      expect(decorations(m.count)[0].left).toBeGreaterThanOrEqual(77);
+      for (const d of [...decorations(m.count - 1), ...decorations(m.count + 1)]) expect(d.left).toBeLessThan(25);
+    }
   });
 });
 

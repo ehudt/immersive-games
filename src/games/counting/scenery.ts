@@ -130,7 +130,9 @@ export function decorations(n: number): Decoration[] {
   else if (n > 165 && r() < 0.12) art = 'comet';
   else if (n > 175 && r() < 0.3) art = `planet${Math.floor(r() * 6)}`;
   if (!art) return [];
-  // Keep the middle (the rocket's path and number stars) mostly clear.
-  const left = r() < 0.5 ? 2 + r() * 22 : 70 + r() * 22;
+  // Keep the middle (the rocket's path and number stars) mostly clear, and
+  // the right side next to a friend free for it.
+  const nearFriend = milestoneAt(n - 1) !== undefined || milestoneAt(n + 1) !== undefined;
+  const left = r() < 0.5 || nearFriend ? 2 + r() * 22 : 70 + r() * 22;
   return [{ art, size, width: 0, left, height: n + r(), drift: (r() * 2 - 1) * 30, duration: 6 + r() * 6 }];
 }

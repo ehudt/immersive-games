@@ -49,6 +49,9 @@ final class DecorationsTests: XCTestCase {
         XCTAssertEqual(milestone(at: 90)?.name, "דרקון")
         XCTAssertNil(milestone(at: 95))
         XCTAssertNil(milestone(at: 310))
-        for m in milestones { XCTAssertGreaterThanOrEqual(decorations(at: m.count)[0].left, 77) }
+        for m in milestones {
+            XCTAssertGreaterThanOrEqual(decorations(at: m.count)[0].left, 77)
+            for d in decorations(at: m.count - 1) + decorations(at: m.count + 1) { XCTAssertLessThan(d.left, 25, "n=\(m.count)") }
+        }
     }
 }

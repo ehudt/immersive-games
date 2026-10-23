@@ -77,8 +77,10 @@ public func decorations(at n: Int) -> [Decoration] {
         art = "planet\(Int(r.next() * 6))"
     }
     if art.isEmpty { return [] }
-    // Keep the middle (the rocket's path and number stars) mostly clear.
-    let left = r.next() < 0.5 ? 2 + r.next() * 22 : 70 + r.next() * 22
+    // Keep the middle (the rocket's path and number stars) mostly clear, and
+    // the right side next to a friend free for it.
+    let nearFriend = milestone(at: n - 1) != nil || milestone(at: n + 1) != nil
+    let left = r.next() < 0.5 || nearFriend ? 2 + r.next() * 22 : 70 + r.next() * 22
     let height = Double(n) + r.next()
     let drift = (r.next() * 2 - 1) * 30
     let duration = 6 + r.next() * 6

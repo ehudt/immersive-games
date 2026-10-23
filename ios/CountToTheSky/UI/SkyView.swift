@@ -30,7 +30,7 @@ struct SkyView: View {
                     .opacity(starsOpacity(Double(count)))
                     .animation(.easeInOut(duration: 1.2), value: count)
 
-                World(count: count, builtUpTo: builtUpTo, layout: L)
+                World(count: count, builtUpTo: max(builtUpTo, count + 24), layout: L)
                     .offset(y: CGFloat(count) * SkyLayout.step)
                     .animation(
                         count == 0
