@@ -1,0 +1,47 @@
+// Port of skyColors() in src/games/counting/Sky.ts. Keep the two in step.
+
+/// An sRGB color, 0...255 per channel.
+public struct RGB: Equatable {
+    public var r: Int, g: Int, b: Int
+
+    public init(_ hex: UInt32) {
+        r = Int(hex >> 16 & 0xFF)
+        g = Int(hex >> 8 & 0xFF)
+        b = Int(hex & 0xFF)
+    }
+
+    init(r: Int, g: Int, b: Int) {
+        self.r = r
+        self.g = g
+        self.b = b
+    }
+
+    func mixed(with o: RGB, _ t: Double) -> RGB {
+        func m(_ a: Int, _ b: Int) -> Int { Int((Double(a) + Double(b - a) * t).rounded()) }
+        return RGB(r: m(r, o.r), g: m(g, o.g), b: m(b, o.b))
+    }
+}
+
+/// The colors of the stars left behind each number.
+public let countColors = [RGB(0xFF5D8F), RGB(0xFFB627), RGB(0x2EC4D6), RGB(0x7BD35A), RGB(0xA374FF), RGB(0xFF8A3D)]
+
+/// (count, top color, bottom color) — the sky darkens into space.
+private let SKY: [(Int, RGB, RGB)] = [
+    (0, RGB(0x4FC3FF), RGB(0xD6F3FF)),
+    (25, RGB(0x2F9BE8), RGB(0xBFE6FF)),
+    (42, RGB(0x4A6FD8), RGB(0xFFC0CF)),
+    (58, RGB(0x2B2F8F), RGB(0xA466C9)),
+    (78, RGB(0x121845), RGB(0x3B2A78)),
+    (100, RGB(0x060922), RGB(0x1A1450)),
+]
+
+/// The sky gradient (top, bottom) at a count.
+public func skyColors(_ count: Int) -> (top: RGB, bottom: RGB) {
+    for i in 1..<SKY.count where count <= SKY[i].0 {
+        let (c0, t0, b0) = SKY[i - 1]
+        let (c1, t1, b1) = SKY[i]
+        let t = Double(count - c0) / Double(c1 - c0)
+        return (t0.mixed(with: t1, t), b0.mixed(with: b1, t))
+    }
+    return (SKY[SKY.count - 1].1, SKY[SKY.count - 1].2)
+}
