@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       # SpeechAnalyzer (iOS 26) needs the iOS 26 SDK: use the newest Xcode on the runner.
       - name: Select Xcode
-        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)" && xcodebuild -version
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | grep -iv beta | sort -V | tail -1)" && xcodebuild -version
       - name: Test CountingCore
         working-directory: ios/CountingCore
         run: swift test
