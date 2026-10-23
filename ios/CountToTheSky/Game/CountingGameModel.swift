@@ -207,7 +207,9 @@ final class CountingGameModel {
         emit(.counted(n))
         if n % 10 == 0 {
             sfx.milestone()
-            emit(.milestone(n, praise: Strings.praise.randomElement()!))
+            // Say hello to the friend the rocket meets here.
+            let word = milestone(at: n).map { "שלום, \($0.name)!" } ?? Strings.praise.randomElement()!
+            emit(.milestone(n, praise: word))
         }
     }
 

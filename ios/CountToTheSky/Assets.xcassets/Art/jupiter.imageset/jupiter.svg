@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120"><defs><clipPath id="jp"><circle cx="60" cy="60" r="56"/></clipPath></defs>
+<circle cx="60" cy="60" r="56" fill="#ecc89c"/>
+<g clip-path="url(#jp)"><rect y="14" width="120" height="10" fill="#c98a5a"/><rect y="34" width="120" height="12" fill="#b8704a"/>
+<rect y="56" width="120" height="8" fill="#f6e2c0"/><rect y="72" width="120" height="12" fill="#c98a5a"/><rect y="94" width="120" height="8" fill="#b8704a"/>
+<ellipse cx="78" cy="78" rx="12" ry="7" fill="#d9573a"/></g>
+<circle cx="40" cy="38" r="16" fill="#fff" opacity="0.18"/></svg>

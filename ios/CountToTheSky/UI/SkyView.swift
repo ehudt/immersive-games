@@ -3,10 +3,11 @@ import SwiftUI
 
 /**
  * The sky the rocket climbs through (src/games/counting/Sky.ts). Every counted
- * number lifts it one step: past the launch pad and hills, through clouds and
- * balloons, a plane, the sunset, then stars, the moon, Saturn and on into
- * space. The drawings are the web's own SVGs (scripts/export-ios-art.ts), and
- * the scenery is placed by the same seeded rules (`decorations(at:)`).
+ * number lifts it one step: past the launch pad and hills, meeting a new
+ * friend every ten numbers (a balloon, a kite, a bird… a dragon), and from 150
+ * the sky darkens into space (a shuttle, the moon, Saturn… the sun at 300).
+ * The drawings are the web's own SVGs (scripts/export-ios-art.ts), and the
+ * scenery is placed by the same seeded rules (`decorations(at:)`).
  *
  * The world is one layer moved down as the rocket climbs.
  */
@@ -26,7 +27,7 @@ struct SkyView: View {
                 SkyBackground(count: Double(count))
                     .animation(.easeInOut(duration: 1.2), value: count)
                 StarField()
-                    .opacity(min(1, max(0, Double(count - 40) / 35)))
+                    .opacity(starsOpacity(Double(count)))
                     .animation(.easeInOut(duration: 1.2), value: count)
 
                 World(count: count, builtUpTo: builtUpTo, layout: L)
@@ -145,21 +146,12 @@ private struct Deco: View {
 
     /// (width, aspect) from counting.css and the drawings' view boxes.
     private var box: (CGFloat, CGFloat) {
-        switch d.art {
+        if d.width > 0, let m = milestones.first(where: { $0.art == d.art }) { return (CGFloat(d.width), CGFloat(m.aspect)) }
+        return switch d.art {
         case "cloud": ([90, 130, 170][max(0, d.size - 1)], 60 / 120)
         case "bird": (34, 20 / 40)
-        case "hotAir": (84, 120 / 90)
-        case "kite": (70, 110 / 70)
-        case "plane": (150, 60 / 150)
-        case "satellite": (120, 60 / 120)
-        case "moon": (130, 1)
-        case "ufo": (110, 60 / 110)
-        case "saturn": (190, 120 / 200)
         case "comet": (140, 50 / 160)
-        case "astronaut": (90, 110 / 90)
-        case "galaxy": (180, 120 / 160)
-        default:
-            d.art.hasPrefix("balloon") ? (38, 90 / 40) : (90, 1) // planets
+        default: (90, 1) // planets
         }
     }
 
@@ -171,7 +163,7 @@ private struct Deco: View {
             .resizable()
             .frame(width: w, height: h)
             .opacity(d.art == "cloud" && d.size == 1 ? 0.85 : 1)
-            .shadow(color: shadow, radius: d.art == "moon" ? 30 : 10, y: d.art == "moon" ? 0 : 6)
+            .shadow(color: shadow, radius: glows ? 30 : 10, y: glows ? 0 : 6)
             .modifier(Flap(on: d.art == "bird"))
             .offset(x: drifted ? d.drift : 0)
             .position(x: layout.width * d.left / 100, y: layout.launchY - d.height * SkyLayout.step - h / 2)
@@ -180,10 +172,15 @@ private struct Deco: View {
             }
     }
 
+    /// A glow all around rather than a shadow below.
+    private var glows: Bool { ["moon", "sun", "shootingStar", "earth"].contains(d.art) }
+
     private var shadow: Color {
         switch d.art {
         case "cloud": Color(red: 40 / 255, green: 90 / 255, blue: 160 / 255).opacity(0.15)
         case "moon": Color(red: 1, green: 240 / 255, blue: 190 / 255).opacity(0.6)
+        case "sun": Color(red: 1, green: 210 / 255, blue: 63 / 255).opacity(0.7)
+        case "shootingStar", "earth": Color(red: 191 / 255, green: 246 / 255, blue: 1).opacity(0.5)
         default: .clear
         }
     }
@@ -304,7 +301,7 @@ private struct NumberStar: View {
     }
 }
 
-/// STAR_PATH from Sky.ts, in its 100 × 96 view box.
+/// STAR_PATH from skyArt.ts, in its 100 × 96 view box.
 struct StarShape: Shape {
     private static let points: [(CGFloat, CGFloat)] = [
         (50, 4), (62, 36), (96, 37), (69, 58), (79, 92), (50, 72), (21, 92), (31, 58), (4, 37), (38, 36),
