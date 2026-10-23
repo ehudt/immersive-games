@@ -1,4 +1,5 @@
-// Port of skyColors() in src/games/counting/Sky.ts. Keep the two in step.
+// Port of skyColors() and starsOpacity() in src/games/counting/scenery.ts.
+// Keep the two in step.
 
 /// An sRGB color, 0...255 per channel.
 public struct RGB: Equatable {
@@ -25,15 +26,21 @@ public struct RGB: Equatable {
 /// The colors of the stars left behind each number.
 public let countColors = [RGB(0xFF5D8F), RGB(0xFFB627), RGB(0x2EC4D6), RGB(0x7BD35A), RGB(0xA374FF), RGB(0xFF8A3D)]
 
-/// (count, top color, bottom color) — the sky darkens into space.
+/// (count, top color, bottom color): a day sky until 150, then into space by 300.
 private let SKY: [(Int, RGB, RGB)] = [
     (0, RGB(0x4FC3FF), RGB(0xD6F3FF)),
-    (25, RGB(0x2F9BE8), RGB(0xBFE6FF)),
-    (42, RGB(0x4A6FD8), RGB(0xFFC0CF)),
-    (58, RGB(0x2B2F8F), RGB(0xA466C9)),
-    (78, RGB(0x121845), RGB(0x3B2A78)),
-    (100, RGB(0x060922), RGB(0x1A1450)),
+    (70, RGB(0x2F9BE8), RGB(0xBFE6FF)),
+    (150, RGB(0x2A86E0), RGB(0xA8DCFF)),
+    (185, RGB(0x3F5FCF), RGB(0xFFBFD0)),
+    (220, RGB(0x262C8A), RGB(0x9A5FC4)),
+    (260, RGB(0x121845), RGB(0x3B2A78)),
+    (300, RGB(0x060922), RGB(0x1A1450)),
 ]
+
+/// Stars fade in as the sky darkens: none at 150, all of them by 230.
+public func starsOpacity(_ count: Double) -> Double {
+    min(1, max(0, (count - 150) / 80))
+}
 
 /// The sky gradient (top, bottom) at a count.
 public func skyColors(_ count: Int) -> (top: RGB, bottom: RGB) {

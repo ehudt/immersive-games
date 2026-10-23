@@ -1,0 +1,36 @@
+// Generated from MILESTONES in src/games/counting/scenery.ts by
+// scripts/export-ios-art.ts. Do not edit: change the web table and rerun it.
+
+/// A new friend every ten numbers, from the hills up to the sun.
+public let milestones: [Milestone] = [
+    Milestone(count: 10, art: "redBalloon", width: 56, aspect: 2.24),
+    Milestone(count: 20, art: "kite", width: 80, aspect: 1.525),
+    Milestone(count: 30, art: "songbird", width: 76, aspect: 0.78125),
+    Milestone(count: 40, art: "rcPlane", width: 110, aspect: 0.62),
+    Milestone(count: 50, art: "eagle", width: 170, aspect: 0.575),
+    Milestone(count: 60, art: "hotAir", width: 110, aspect: 1.333333),
+    Milestone(count: 70, art: "cessna", width: 160, aspect: 0.466667),
+    Milestone(count: 80, art: "helicopter", width: 150, aspect: 0.571429),
+    Milestone(count: 90, art: "dragon", width: 180, aspect: 0.651163),
+    Milestone(count: 100, art: "plane", width: 200, aspect: 0.4),
+    Milestone(count: 110, art: "zeppelin", width: 200, aspect: 0.433333),
+    Milestone(count: 120, art: "jets", width: 180, aspect: 0.541176),
+    Milestone(count: 130, art: "weatherBalloon", width: 84, aspect: 1.825),
+    Milestone(count: 140, art: "carpet", width: 160, aspect: 0.466667),
+    Milestone(count: 150, art: "shuttle", width: 96, aspect: 1.555556),
+    Milestone(count: 160, art: "satellite", width: 140, aspect: 0.5),
+    Milestone(count: 170, art: "station", width: 190, aspect: 0.576471),
+    Milestone(count: 180, art: "astronaut", width: 100, aspect: 1.222222),
+    Milestone(count: 190, art: "moon", width: 150, aspect: 1),
+    Milestone(count: 200, art: "ufo", width: 130, aspect: 0.545455),
+    Milestone(count: 210, art: "mars", width: 120, aspect: 1),
+    Milestone(count: 220, art: "comet", width: 180, aspect: 0.3125),
+    Milestone(count: 230, art: "saturn", width: 210, aspect: 0.6),
+    Milestone(count: 240, art: "alien", width: 100, aspect: 1.16),
+    Milestone(count: 250, art: "jupiter", width: 150, aspect: 1),
+    Milestone(count: 260, art: "spaceWhale", width: 200, aspect: 0.588235),
+    Milestone(count: 270, art: "earth", width: 140, aspect: 1),
+    Milestone(count: 280, art: "galaxy", width: 200, aspect: 0.75),
+    Milestone(count: 290, art: "shootingStar", width: 180, aspect: 0.465116),
+    Milestone(count: 300, art: "sun", width: 170, aspect: 1),
+]

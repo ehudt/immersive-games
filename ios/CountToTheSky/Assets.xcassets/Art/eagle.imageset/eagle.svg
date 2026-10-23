@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 92" width="160" height="92"><defs><linearGradient id="eaW" x1="0" y1="0" x2="0" y2="1"><stop offset="0.00" stop-color="#b9844c" stop-opacity="1"/><stop offset="0.50" stop-color="#7a4b22" stop-opacity="1"/><stop offset="1.00" stop-color="#4e2a10" stop-opacity="1"/></linearGradient><radialGradient id="eaB" cx="0.4" cy="0.3" r="0.8"><stop offset="0.00" stop-color="#9a6a3a" stop-opacity="1"/><stop offset="1.00" stop-color="#5e3518" stop-opacity="1"/></radialGradient><radialGradient id="eaH" cx="0.35" cy="0.3" r="0.8"><stop offset="0.00" stop-color="#ffffff" stop-opacity="1"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="1"/><stop offset="1.00" stop-color="#d9deea" stop-opacity="1"/></radialGradient><linearGradient id="eaK" x1="0" y1="0" x2="0" y2="1"><stop offset="0.00" stop-color="#ffe066" stop-opacity="1"/><stop offset="1.00" stop-color="#f08a24" stop-opacity="1"/></linearGradient><linearGradient id="eaT" x1="0" y1="0" x2="0" y2="1"><stop offset="0.00" stop-color="#ffffff" stop-opacity="1"/><stop offset="1.00" stop-color="#d6dbe8" stop-opacity="1"/></linearGradient></defs>
+<path d="M78 44 C60 18 30 10 2 16 L14 24 L6 30 L20 34 L12 42 L30 44 Q50 52 78 56Z" fill="url(#eaW)"/>
+<path d="M82 44 C100 18 130 10 158 16 L146 24 L154 30 L140 34 L148 42 L130 44 Q110 52 82 56Z" fill="url(#eaW)"/>
+<path d="M72 40 Q52 24 22 20 M68 47 Q50 38 30 37 M88 40 Q108 24 138 20 M92 47 Q110 38 130 37" stroke="#e0b07a" stroke-width="1.8" fill="none" opacity="0.55" stroke-linecap="round"/>
+<path d="M70 70 L73 88 L80 84 L87 88 L90 70Z" fill="url(#eaT)"/>
+<path d="M72 69 Q70 76 74 78 M88 69 Q90 76 86 78" stroke="#ffb627" stroke-width="3" fill="none" stroke-linecap="round"/>
+<ellipse cx="80" cy="54" rx="14" ry="20" fill="url(#eaB)"/>
+<circle cx="86" cy="32" r="12" fill="url(#eaH)"/><path d="M95 28 Q108 30 102 40 Q99 37 96 36Z" fill="url(#eaK)"/>
+<path d="M85 25.5 L92 27" stroke="#9aa3b8" stroke-width="1.5" stroke-linecap="round"/>
+<circle cx="89" cy="29.5" r="2.4" fill="#1a2238"/><circle cx="89.8" cy="28.7" r="0.8" fill="#fff"/></svg>

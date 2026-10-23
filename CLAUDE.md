@@ -20,6 +20,8 @@ Camera-driven browser games (Vite + TypeScript + Three.js + MediaPipe Pose).
 - Visuals are procedural (no asset files) for now.
 - `ios/` is a native SwiftUI port of the counting game (see `ios/README.md`).
   `ios/CountingCore/` ports `hebrewNumbers.ts`, `CountJudge.ts` and
-  `skyColors` line by line, with the same tests: change one side, port the
-  change to the other. Swift is built and tested by `.github/workflows/ios.yml`
+  `scenery.ts` (sky colors, seeded scenery) line by line, with the same tests:
+  change one side, port the change to the other. The drawings (`skyArt.ts`)
+  and the milestone friends table are generated into the iOS project by
+  `scripts/export-ios-art.ts`. Swift is built and tested by `.github/workflows/ios.yml`
   (macOS); there is no Swift toolchain in the cloud container.

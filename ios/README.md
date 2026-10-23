@@ -32,8 +32,9 @@ simulator with a working microphone.
 
 - `CountingCore/` — Swift package with the pure logic, ported line by line
   from the web: `HebrewNumbers.swift` (`hebrewNumbers.ts`), `CountJudge.swift`
-  (`CountJudge.ts`), `SkyColors.swift` (`skyColors` in `Sky.ts`). Fix a bug on
-  one side, port it to the other. Tests: `swift test` in that folder, or
+  (`CountJudge.ts`), `SkyColors.swift` and `Decorations.swift` (`scenery.ts`).
+  Fix a bug on one side, port it to the other. `Milestones.swift` (the friend
+  met every ten numbers) is generated from `MILESTONES` in `scenery.ts`. Tests: `swift test` in that folder, or
   Product → Test in Xcode.
 - `CountToTheSky/` — the app (an Xcode 16 synchronized folder: new files are
   picked up without editing the project).
@@ -46,9 +47,9 @@ simulator with a working microphone.
   - `UI/` — the sky, cards, confetti and styles. Fonts: Varela Round (Hebrew)
     and Fredoka (digits), both OFL, bundled in `Fonts/`.
   - `Assets.xcassets/Art/` — the web's drawings (rocket, clouds, Saturn…) as
-    vector SVGs, generated from `src/games/counting/Sky.ts` by
+    vector SVGs, generated from `src/games/counting/skyArt.ts` by
     `node --experimental-strip-types scripts/export-ios-art.ts`. Rerun it after
-    changing a drawing. The scenery is placed by `decorations(at:)` in
+    changing a drawing or the milestone table. The scenery is placed by `decorations(at:)` in
     CountingCore, the same seeded rules as the web.
 
 ## Launch arguments

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 170 92" width="170" height="92"><defs><linearGradient id="jtB" x1="0" y1="0" x2="0" y2="1"><stop offset="0.00" stop-color="#ffffff" stop-opacity="1"/><stop offset="1.00" stop-color="#c9d2e8" stop-opacity="1"/></linearGradient><linearGradient id="jtC" x1="0" y1="0" x2="0" y2="1"><stop offset="0.00" stop-color="#e6fbff" stop-opacity="1"/><stop offset="1.00" stop-color="#3fa9e8" stop-opacity="1"/></linearGradient></defs><defs><linearGradient id="jt1" x1="0" y1="0" x2="1" y2="0"><stop offset="0.00" stop-color="#ff5d8f" stop-opacity="0"/><stop offset="1.00" stop-color="#ff5d8f" stop-opacity="0.85"/></linearGradient></defs>
+<rect x="0" y="13" width="112" height="8" rx="4" fill="url(#jt1)"/>
+<g transform="translate(108 10)"><path d="M2 6 L-2 -3 L4 -3 L9 5Z" fill="#2e86de"/>
+<path d="M0 7 Q2 3 8 3 L30 4 Q38 6 38 7 Q38 8 30 10 L8 11 Q2 11 0 7Z" fill="url(#jtB)"/>
+<path d="M32 4.4 Q38 6 38 7 Q38 8 32 9.6Z" fill="#ff5d8f"/>
+<path d="M14 8 L8 18 L14 18 L24 8Z" fill="#2e86de"/><ellipse cx="25" cy="5.6" rx="4.5" ry="2.2" fill="url(#jtC)"/></g><defs><linearGradient id="jt2" x1="0" y1="0" x2="1" y2="0"><stop offset="0.00" stop-color="#ffd23f" stop-opacity="0"/><stop offset="1.00" stop-color="#ffd23f" stop-opacity="0.85"/></linearGradient></defs>
+<rect x="0" y="43" width="134" height="8" rx="4" fill="url(#jt2)"/>
+<g transform="translate(130 40)"><path d="M2 6 L-2 -3 L4 -3 L9 5Z" fill="#2e86de"/>
+<path d="M0 7 Q2 3 8 3 L30 4 Q38 6 38 7 Q38 8 30 10 L8 11 Q2 11 0 7Z" fill="url(#jtB)"/>
+<path d="M32 4.4 Q38 6 38 7 Q38 8 32 9.6Z" fill="#ff5d8f"/>
+<path d="M14 8 L8 18 L14 18 L24 8Z" fill="#2e86de"/><ellipse cx="25" cy="5.6" rx="4.5" ry="2.2" fill="url(#jtC)"/></g><defs><linearGradient id="jt3" x1="0" y1="0" x2="1" y2="0"><stop offset="0.00" stop-color="#2ec4d6" stop-opacity="0"/><stop offset="1.00" stop-color="#2ec4d6" stop-opacity="0.85"/></linearGradient></defs>
+<rect x="0" y="73" width="112" height="8" rx="4" fill="url(#jt3)"/>
+<g transform="translate(108 70)"><path d="M2 6 L-2 -3 L4 -3 L9 5Z" fill="#2e86de"/>
+<path d="M0 7 Q2 3 8 3 L30 4 Q38 6 38 7 Q38 8 30 10 L8 11 Q2 11 0 7Z" fill="url(#jtB)"/>
+<path d="M32 4.4 Q38 6 38 7 Q38 8 32 9.6Z" fill="#ff5d8f"/>
+<path d="M14 8 L8 18 L14 18 L24 8Z" fill="#2e86de"/><ellipse cx="25" cy="5.6" rx="4.5" ry="2.2" fill="url(#jtC)"/></g></svg>

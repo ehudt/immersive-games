@@ -210,6 +210,13 @@
 .deco-comet {
   width: 140px;
 }
+.deco-sun {
+  filter: drop-shadow(0 0 30px rgba(255, 210, 63, 0.7));
+}
+.deco-shootingstar,
+.deco-earth {
+  filter: drop-shadow(0 0 14px rgba(191, 246, 255, 0.5));
+}
 
 /* --------------------------------------------------- number stars */
 
