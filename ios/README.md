@@ -55,7 +55,8 @@ simulator with a working microphone.
 
 Enable them in the scheme (Product → Scheme → Edit Scheme → Arguments):
 
-- `-debug` — transcript log at the bottom, with "copy log".
+- `-debug` — transcript log at the bottom, with "copy log". The 🐞 button in
+  the top bar turns the same log on and off without Xcode.
 - `-scriptedSpeech` — no microphone; type transcripts into the debug box (use
   with `-debug`).
 - `-legacySpeech` — on iOS 26+, use the older `SFSpeechRecognizer` instead of
