@@ -34,7 +34,7 @@ struct SkyView: View {
                     .animation(
                         count == 0
                             ? .timingCurve(0.6, 0, 0.3, 1, duration: 1.3)
-                            : .timingCurve(0.3, 1.25, 0.6, 1, duration: 0.75),
+                            : .timingCurve(0.2, 1.3, 0.5, 1, duration: 0.45),
                         value: count
                     )
 
@@ -267,10 +267,10 @@ private struct Rocket: View {
             m.flameX = 1
             m.flameY = 0.3 + 0.7 * max(0, min(1, fuel))
         }
-        // Kick: up and stretched at 30% of half a second, then back.
-        let k = now.timeIntervalSince(kickAt) / 0.5
+        // Kick: up and stretched at 20% of 0.4 s, then back: a snappy hit.
+        let k = now.timeIntervalSince(kickAt) / 0.4
         if flying && k < 1 {
-            let a = k < 0.3 ? k / 0.3 : 1 - (k - 0.3) / 0.7
+            let a = k < 0.2 ? k / 0.2 : 1 - (k - 0.2) / 0.8
             let e = a * a * (3 - 2 * a)
             m.y -= 18 * e
             m.kickScaleX = 1 + 0.08 * e

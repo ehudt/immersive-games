@@ -4,7 +4,10 @@ import SwiftUI
 /// One scene: the sky always behind, the playing HUD or a card over it.
 struct GameView: View {
     @Bindable var model: CountingGameModel
+    /// `-debug`: the log is on from launch.
     var debug = false
+    /// The bug button in the top bar: shows the log until turned off again.
+    @AppStorage("counting.debugLog") private var showLog = false
 
     @State private var confetti = Confetti()
     @State private var praise: (n: Int, text: String)?
@@ -36,7 +39,7 @@ struct GameView: View {
                 ConfettiView(confetti: confetti)
 
                 VStack(spacing: 0) {
-                    TopBar(model: model)
+                    TopBar(model: model, showLog: $showLog)
                     Spacer()
                     if playing { ListenIndicator(model: model).padding(.bottom, 16) }
                 }
@@ -54,7 +57,7 @@ struct GameView: View {
         .environment(\.locale, Locale(identifier: "he"))
         .sensoryFeedback(.impact(weight: .light, intensity: 0.8), trigger: model.count) { old, new in new > old }
         .overlay(alignment: .bottom) {
-            if debug { DebugPanel(model: model) }
+            if debug || showLog { DebugPanel(model: model) }
         }
     }
 
@@ -116,11 +119,11 @@ private struct BigNumber: View {
             } keyframes: { _ in
                 KeyframeTrack(\.scale) {
                     MoveKeyframe(1.45)
-                    SpringKeyframe(1, duration: 0.45, spring: .bouncy)
+                    SpringKeyframe(1, duration: 0.3, spring: .bouncy)
                 }
                 KeyframeTrack(\.angle) {
                     MoveKeyframe(-6)
-                    SpringKeyframe(0, duration: 0.45, spring: .bouncy)
+                    SpringKeyframe(0, duration: 0.3, spring: .bouncy)
                 }
             }
             .allowsHitTesting(false)
@@ -187,6 +190,7 @@ private struct PraiseBanner: View {
 
 private struct TopBar: View {
     @Bindable var model: CountingGameModel
+    @Binding var showLog: Bool
 
     var body: some View {
         HStack(spacing: 10) {
@@ -194,6 +198,7 @@ private struct TopBar: View {
                 IconButton(symbol: "xmark", label: "חזרה לתפריט") { model.exitToIntro() }
             }
             IconButton(symbol: model.muted ? "speaker.slash.fill" : "speaker.wave.2.fill", label: "השתקה") { model.muted.toggle() }
+            IconButton(symbol: showLog ? "ladybug.fill" : "ladybug", label: "יומן דיבאג") { showLog.toggle() }
             Spacer()
             if model.best > 0 {
                 Text("🏅 השיא: \(model.best)")

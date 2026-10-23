@@ -54,10 +54,7 @@ final class CountingGameModel {
     }
     private(set) var best: Int
     var muted = false {
-        didSet {
-            sfx.muted = muted
-            if muted { narrator.stop() }
-        }
+        didSet { sfx.muted = muted }
     }
 
     let speechSupported: Bool
@@ -66,7 +63,6 @@ final class CountingGameModel {
 
     private let speech: SpeechService
     private let sfx = SoundService()
-    private let narrator = Narrator()
     private let defaults: UserDefaults
     private var judge = CountJudge()
     /// When the clock for the next number started (nil until the mic is on).
@@ -91,7 +87,11 @@ final class CountingGameModel {
         patience = defaults.string(forKey: Self.patienceKey).flatMap(Patience.init(rawValue:)) ?? .long
         switch choice {
         case .apple:
-            speech = AppleSpeechService()
+            if #available(iOS 26, *), !ProcessInfo.processInfo.arguments.contains("-legacySpeech") {
+                speech = AnalyzerSpeechService()
+            } else {
+                speech = AppleSpeechService()
+            }
             scripted = nil
             speechSupported = AppleSpeechService.supported
         case .scripted:
@@ -106,7 +106,6 @@ final class CountingGameModel {
     // ----------------------------------------------------------- screens
 
     func play() {
-        narrator.stop()
         cancelPending()
         judge = CountJudge()
         count = 0
@@ -127,7 +126,6 @@ final class CountingGameModel {
 
     func exitToIntro() {
         stopPlaying()
-        narrator.stop()
         cancelPending()
         // Back to the launch pad.
         count = 0
@@ -152,10 +150,6 @@ final class CountingGameModel {
         sfx.victory()
         emit(.finished(record: record))
         phase = .over(Result(count: n, wrong: wrong, record: record))
-        later(1.7) { [weak self] in
-            guard let self, !self.muted, case .over = self.phase else { return }
-            self.narrator.say("כל הכבוד! ספרת עד \(n)!")
-        }
     }
 
     private func stopPlaying() {
@@ -172,7 +166,10 @@ final class CountingGameModel {
         case let .result(alts, isFinal, confidence):
             onSpeech(alts, isFinal: isFinal, confidence: confidence)
         case let .listening(on):
-            if on { judge.newSession() }
+            if on {
+                judge.newSession()
+                debugLog("LISTEN \(speech.detail)")
+            }
             setListening(on)
         case let .error(kind, detail):
             debugLog("ERROR \(kind) \(detail)")
@@ -191,7 +188,9 @@ final class CountingGameModel {
         let kind = isFinal ? "FINAL " + String(format: "%.2f", confidence) : "interim"
         let texts = alts.map { "\"\($0)\"" }.joined(separator: " | ")
         let wrong = heard.wrong.map { " wrong \($0)" } ?? ""
-        debugLog("\(kind) \(texts) → +\(heard.counted)\(wrong)")
+        // From when the voice started to now: roughly how long recognition took.
+        let lag = speech.voiceOnset.map { " \(Int(Date().timeIntervalSince($0) * 1000))ms" } ?? ""
+        debugLog("\(kind) \(texts) → +\(heard.counted)\(wrong)\(lag)")
         for (i, n) in heard.counted.enumerated() {
             if i == 0 { onCount(n) } else { later(Double(i) * 0.14) { [weak self] in self?.onCount(n) } }
         }
