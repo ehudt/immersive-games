@@ -28,6 +28,8 @@ interface Recognition {
   continuous: boolean;
   interimResults: boolean;
   maxAlternatives: number;
+  /** Recognize on the device only (newer Chrome and Edge). */
+  processLocally?: boolean;
   onresult: ((e: RecognitionEvent) => void) | null;
   onerror: ((e: { error: string; message?: string }) => void) | null;
   onstart: (() => void) | null;
@@ -35,7 +37,18 @@ interface Recognition {
   start(): void;
   abort(): void;
 }
-type RecognitionCtor = new () => Recognition;
+type Availability = 'unavailable' | 'downloadable' | 'downloading' | 'available';
+interface LocalOptions {
+  langs: string[];
+  processLocally: boolean;
+}
+type RecognitionCtor = (new () => Recognition) & {
+  available?(o: LocalOptions): Promise<Availability>;
+  install?(o: LocalOptions): Promise<boolean>;
+};
+
+/** Whether on-device recognition can run: 'ready', or why not. */
+export type OnDeviceStatus = 'ready' | 'unsupported' | 'unavailable' | 'install-failed';
 
 export type SpeechErrorKind = 'not-allowed' | 'no-microphone' | 'network' | 'language' | 'other';
 
@@ -52,6 +65,8 @@ export interface SpeechCallbacks {
   onListening?(listening: boolean): void;
   /** A new recognition session started; a word said in the gap is lost. */
   onSession?(): void;
+  /** A diagnostic line, for the debug log. */
+  onInfo?(line: string): void;
   /** A problem restarting will not fix; listening has stopped. */
   onError(kind: SpeechErrorKind, detail: string): void;
 }
@@ -69,6 +84,24 @@ export class SpeechListener {
     return ctor() !== null;
   }
 
+  /**
+   * Gets on-device recognition of `lang` ready, downloading its language
+   * pack if needed. Call from a user gesture, which the download may need.
+   */
+  static async prepareOnDevice(lang: string): Promise<OnDeviceStatus> {
+    const Ctor = ctor();
+    if (!Ctor?.available || !Ctor.install) return 'unsupported';
+    const o = { langs: [lang], processLocally: true };
+    try {
+      const status = await Ctor.available(o);
+      if (status === 'available') return 'ready';
+      if (status === 'unavailable') return 'unavailable';
+      return (await Ctor.install(o)) ? 'ready' : 'install-failed';
+    } catch {
+      return 'install-failed';
+    }
+  }
+
   private rec: Recognition | null = null;
   private active = false;
   private startedAt = 0;
@@ -79,10 +112,13 @@ export class SpeechListener {
   private listening = false;
   /** A session started since `start()`, so the mic and service work. */
   private worked = false;
+  private localReady = false;
 
   constructor(
     private readonly cb: SpeechCallbacks,
     private readonly lang = 'he-IL',
+    /** Recognize on the device instead of the browser vendor's service. */
+    private readonly onDevice = false,
   ) {}
 
   /** Call from a user gesture the first time, so the mic prompt may show. */
@@ -90,7 +126,14 @@ export class SpeechListener {
     this.active = true;
     this.quickEnds = 0;
     this.worked = false;
-    this.session();
+    if (!this.onDevice || this.localReady) return this.session();
+    void SpeechListener.prepareOnDevice(this.lang).then((status) => {
+      this.cb.onInfo?.(`on-device ${this.lang}: ${status}`);
+      if (!this.active) return;
+      if (status !== 'ready') return this.fail('language', `on-device recognition ${status}`);
+      this.localReady = true;
+      this.session();
+    });
   }
 
   stop(): void {
@@ -123,6 +166,7 @@ export class SpeechListener {
     rec.continuous = true;
     rec.interimResults = true;
     rec.maxAlternatives = 3;
+    if (this.onDevice) rec.processLocally = true;
     let heard = false;
     this.startedAt = performance.now(); // until onstart, in case it never comes
     rec.onstart = () => {

@@ -736,6 +736,10 @@
   font: inherit;
   padding: 4px 6px;
 }
+.c-debug > label {
+  display: block;
+  margin-top: 6px;
+}
 .c-debug pre {
   margin: 6px 0 0;
   white-space: pre-wrap;

@@ -8,6 +8,7 @@ class FakeRec {
   continuous = false;
   interimResults = false;
   maxAlternatives = 1;
+  processLocally = false;
   onresult: ((e: unknown) => void) | null = null;
   onerror: ((e: { error: string }) => void) | null = null;
   onstart: (() => void) | null = null;
@@ -22,6 +23,18 @@ class FakeRec {
     this.onresult?.({ resultIndex: 0, results: [r] });
   }
 }
+
+/** On-device language-pack state the fake browser reports. */
+let pack: 'unavailable' | 'downloadable' | 'available' = 'available';
+let installs = 0;
+Object.assign(FakeRec, {
+  available: async () => pack,
+  install: async () => {
+    installs++;
+    pack = 'available';
+    return true;
+  },
+});
 
 const last = () => FakeRec.all[FakeRec.all.length - 1];
 
@@ -126,5 +139,40 @@ describe('SpeechListener', () => {
     last().onstart!();
     listener.stop();
     expect(events).toEqual(['session', 'on', 'off']);
+  });
+
+  describe('on device', () => {
+    const flush = () => vi.advanceTimersByTimeAsync(0);
+
+    it('downloads the language pack, then recognizes locally', async () => {
+      pack = 'downloadable';
+      installs = 0;
+      const lines: string[] = [];
+      const listener = new SpeechListener(
+        { onResult() {}, onError() {}, onInfo: (l) => lines.push(l) },
+        'he-IL',
+        true,
+      );
+      listener.start();
+      expect(FakeRec.all).toHaveLength(0);
+      await flush();
+      expect(installs).toBe(1);
+      expect(lines).toEqual(['on-device he-IL: ready']);
+      expect(last().processLocally).toBe(true);
+    });
+
+    it('reports a language it cannot recognize locally', async () => {
+      pack = 'unavailable';
+      const errors: string[] = [];
+      new SpeechListener({ onResult() {}, onError: (k) => errors.push(k) }, 'he-IL', true).start();
+      await flush();
+      expect(errors).toEqual(['language']);
+      expect(FakeRec.all).toHaveLength(0);
+    });
+
+    it('leaves the default mode alone', () => {
+      setup().listener.start();
+      expect(last().processLocally).toBe(false);
+    });
   });
 });

@@ -7,6 +7,8 @@ import { CountingSfx } from './sounds';
 
 export interface CountingOptions {
   debug: boolean;
+  /** Recognize speech on the device (`?speech=device`), for testing. */
+  onDevice?: boolean;
   onExit(): void;
 }
 
@@ -87,6 +89,8 @@ export class CountingGame {
   private patience = loadPatience();
   private lastTick = 0;
   private listening = false;
+  private onDevice: boolean;
+  private listenerOnDevice = false;
   /** When the clock for the next number started (null until the mic is on). */
   private waitingSince: number | null = null;
   private lastSpeech = 0;
@@ -99,6 +103,7 @@ export class CountingGame {
     parent: HTMLElement,
     private readonly opts: CountingOptions,
   ) {
+    this.onDevice = opts.onDevice ?? false;
     this.root = document.createElement('div');
     this.root.className = 'counting';
     this.root.dir = 'rtl';
@@ -215,12 +220,19 @@ export class CountingGame {
     this.ui.listen.classList.add('show');
     this.setListening(false);
     if (SpeechListener.supported()) {
+      if (this.listener && this.listenerOnDevice !== this.onDevice) {
+        this.listener.dispose();
+        this.listener = null;
+      }
+      this.listenerOnDevice = this.onDevice;
       this.listener ??= new SpeechListener({
         onResult: (alts, final, confidence) => this.onSpeech(alts, final, confidence),
         onSession: () => this.judge.newSession(),
         onListening: (on) => this.setListening(on),
+        onInfo: (line) => this.debugLog(line),
         onError: (kind, detail) => this.onSpeechError(kind, detail),
-      });
+      }, 'he-IL', this.onDevice);
+      this.debugLog(`MIC start, ${this.onDevice ? 'on-device' : 'browser default'} recognition`);
       this.listener.start();
     } else {
       // Debug without speech support: start the clock right away.
@@ -446,7 +458,16 @@ export class CountingGame {
   private setupDebug(): void {
     const d = this.ui.debug;
     d.classList.add('show');
-    d.innerHTML = `<form><input placeholder="type a transcript, e.g. אחת שתיים" /><label><input type="checkbox" checked /> final</label><button type="button" class="copy">copy log</button></form><pre></pre>`;
+    d.innerHTML = `<form><input placeholder="type a transcript, e.g. אחת שתיים" /><label><input type="checkbox" checked /> final</label><button type="button" class="copy">copy log</button></form><label><input type="checkbox" class="on-device" ${this.onDevice ? 'checked' : ''} /> on-device speech (next game)</label><pre></pre>`;
+    d.querySelector<HTMLInputElement>('.on-device')!.onchange = (e) => {
+      this.onDevice = (e.currentTarget as HTMLInputElement).checked;
+      // The next game makes a listener in the new mode; the link keeps it.
+      const p = new URLSearchParams(location.search);
+      if (this.onDevice) p.set('speech', 'device');
+      else p.delete('speech');
+      history.replaceState(null, '', `${location.pathname}?${p}${location.hash}`);
+      this.debugLog(`speech mode → ${this.onDevice ? 'on-device' : 'browser default'} (next game)`);
+    };
     const copy = d.querySelector<HTMLElement>('.copy')!;
     copy.onclick = () => {
       const text = `Count to the Sky log (${navigator.userAgent})\n${this.log.join('\n')}`;
@@ -469,7 +490,7 @@ export class CountingGame {
     this.log.push(`${(performance.now() / 1000).toFixed(1)}s ${line}`);
     this.log = this.log.slice(-400);
     this.ui.debug.querySelector('pre')!.textContent =
-      `count=${this.judge.count} listening=${this.listening} phase=${this.phase} patience=${this.patience}\n` +
+      `count=${this.judge.count} listening=${this.listening} phase=${this.phase} patience=${this.patience} speech=${this.onDevice ? 'device' : 'default'}\n` +
       this.log.slice(-14).join('\n');
   }
 }
