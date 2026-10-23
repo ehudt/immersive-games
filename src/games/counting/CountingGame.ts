@@ -217,10 +217,8 @@ export class CountingGame {
     if (SpeechListener.supported()) {
       this.listener ??= new SpeechListener({
         onResult: (alts, final, confidence) => this.onSpeech(alts, final, confidence),
-        onListening: (on) => {
-          if (on) this.judge.newSession();
-          this.setListening(on);
-        },
+        onSession: () => this.judge.newSession(),
+        onListening: (on) => this.setListening(on),
         onError: (kind, detail) => this.onSpeechError(kind, detail),
       });
       this.listener.start();
@@ -357,8 +355,8 @@ export class CountingGame {
 
   /**
    * The patience clock: no new number for too long means the child is stuck.
-   * It stops while the recognizer restarts between sessions (not the child's
-   * fault), and gives extra time while the child is still talking.
+   * It stops while the recognizer is slow to restart between sessions (not
+   * the child's fault), and gives extra time while the child is still talking.
    */
   private tick(): void {
     const now = performance.now();

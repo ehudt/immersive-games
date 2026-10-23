@@ -4,7 +4,9 @@
  * the browser vendor's speech service does the recognition.
  *
  * Browsers end a recognition session after silence or a while of talking, so
- * this restarts it for as long as `start()` is in effect.
+ * this restarts it for as long as `start()` is in effect. Android Chrome ends
+ * one after every phrase, so restarts are constant there: they are hidden
+ * from `onListening` unless the next session is slow to come up.
  */
 
 // Minimal typings: lib.dom does not cover the prefixed constructor.
@@ -43,8 +45,13 @@ export interface SpeechCallbacks {
    * best one's confidence (0..1; 0 when the browser doesn't say).
    */
   onResult(alternatives: string[], final: boolean, confidence: number): void;
-  /** Recognition is (re)listening — a new session — or stopped between sessions. */
+  /**
+   * Listening started or stopped. The short gap of a restart between sessions
+   * is not reported (see `RESTART_GRACE_MS`).
+   */
   onListening?(listening: boolean): void;
+  /** A new recognition session started; a word said in the gap is lost. */
+  onSession?(): void;
   /** A problem restarting will not fix; listening has stopped. */
   onError(kind: SpeechErrorKind, detail: string): void;
 }
@@ -53,6 +60,9 @@ function ctor(): RecognitionCtor | null {
   const w = window as unknown as { SpeechRecognition?: RecognitionCtor; webkitSpeechRecognition?: RecognitionCtor };
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
+
+/** A restart gap shorter than this does not report `onListening(false)`. */
+export const RESTART_GRACE_MS = 1500;
 
 export class SpeechListener {
   static supported(): boolean {
@@ -64,6 +74,11 @@ export class SpeechListener {
   private startedAt = 0;
   private quickEnds = 0;
   private restartTimer = 0;
+  private offTimer = 0;
+  /** What `onListening` last reported. */
+  private listening = false;
+  /** A session started since `start()`, so the mic and service work. */
+  private worked = false;
 
   constructor(
     private readonly cb: SpeechCallbacks,
@@ -74,12 +89,14 @@ export class SpeechListener {
   start(): void {
     this.active = true;
     this.quickEnds = 0;
+    this.worked = false;
     this.session();
   }
 
   stop(): void {
     this.active = false;
     clearTimeout(this.restartTimer);
+    clearTimeout(this.offTimer);
     const rec = this.rec;
     this.rec = null;
     if (rec) {
@@ -90,7 +107,7 @@ export class SpeechListener {
         /* already stopped */
       }
     }
-    this.cb.onListening?.(false);
+    this.setListening(false);
   }
 
   dispose(): void {
@@ -106,11 +123,17 @@ export class SpeechListener {
     rec.continuous = true;
     rec.interimResults = true;
     rec.maxAlternatives = 3;
+    let heard = false;
+    this.startedAt = performance.now(); // until onstart, in case it never comes
     rec.onstart = () => {
       this.startedAt = performance.now();
-      this.cb.onListening?.(true);
+      this.worked = true;
+      clearTimeout(this.offTimer);
+      this.cb.onSession?.();
+      this.setListening(true);
     };
     rec.onresult = (e) => {
+      heard = true;
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const r = e.results[i];
         const alts: string[] = [];
@@ -127,9 +150,11 @@ export class SpeechListener {
         case 'service-not-allowed':
           return this.fail('not-allowed', e.error);
         case 'audio-capture':
-          return this.fail('no-microphone', e.error);
         case 'network':
-          return this.fail('network', e.error);
+          // Mid-game these are usually passing (the mic not yet released by
+          // the last session, a network blip): onend retries with backoff.
+          if (this.worked) return;
+          return this.fail(e.error === 'network' ? 'network' : 'no-microphone', e.error);
         case 'language-not-supported':
           return this.fail('language', e.error);
         default:
@@ -139,10 +164,13 @@ export class SpeechListener {
     rec.onend = () => {
       if (this.rec !== rec) return;
       this.rec = null;
-      this.cb.onListening?.(false);
-      if (!this.active) return;
-      // Sessions that die right away usually mean a lasting problem; back off.
-      this.quickEnds = performance.now() - this.startedAt < 1000 ? this.quickEnds + 1 : 0;
+      if (!this.active) return this.setListening(false);
+      clearTimeout(this.offTimer);
+      this.offTimer = window.setTimeout(() => this.setListening(false), RESTART_GRACE_MS);
+      // Sessions that die right away with nothing heard usually mean a lasting
+      // problem; back off. (Android ends a session after each phrase, which
+      // can be quick, but it heard something.)
+      this.quickEnds = !heard && performance.now() - this.startedAt < 1000 ? this.quickEnds + 1 : 0;
       if (this.quickEnds > 8) return this.fail('other', 'Speech recognition keeps stopping');
       this.restartTimer = window.setTimeout(() => this.active && this.session(), Math.min(1000, 60 * this.quickEnds));
     };
@@ -151,6 +179,12 @@ export class SpeechListener {
     } catch (err) {
       this.fail('other', String(err));
     }
+  }
+
+  private setListening(on: boolean): void {
+    if (on === this.listening) return;
+    this.listening = on;
+    this.cb.onListening?.(on);
   }
 
   private fail(kind: SpeechErrorKind, detail: string): void {
