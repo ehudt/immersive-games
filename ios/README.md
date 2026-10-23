@@ -61,6 +61,8 @@ Enable them in the scheme (Product → Scheme → Edit Scheme → Arguments):
 - `-legacySpeech` — on iOS 26+, use the older `SFSpeechRecognizer` instead of
   `SpeechAnalyzer` (the default there; it falls back to the older one by
   itself when it has no Hebrew model, and `LISTEN …` says which is used).
+- `-dictation` — with `SpeechAnalyzer`, use `DictationTranscriber` rather
+  than `SpeechTranscriber`.
 - `-serverSpeech` — with the older recognizer, recognize on Apple's servers even when the device can do
   it on its own (on-device is the default: it answers faster). The debug log
   shows which one is used (`LISTEN on-device`), and after each counted number

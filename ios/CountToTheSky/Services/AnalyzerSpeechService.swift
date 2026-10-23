@@ -25,6 +25,8 @@ final class AnalyzerSpeechService: SpeechService {
     private var analyzer: SpeechAnalyzer?
     private var input: AsyncStream<AnalyzerInput>.Continuation?
     private var results: Task<Void, Never>?
+    /// Bumped on teardown, so a stopped transcriber's late results are dropped.
+    private var generation = 0
     private var active = false
     private var module = "analyzer"
     /// Used instead when the analyzer can't do Hebrew here.
@@ -59,43 +61,55 @@ final class AnalyzerSpeechService: SpeechService {
         guard active else { return }
         guard speechOK && micOK else { return fail(.notAllowed, "permission denied") }
 
-        let transcriber: any SpeechModule
-        if SpeechTranscriber.isAvailable, let locale = await SpeechTranscriber.supportedLocale(equivalentTo: Self.locale) {
+        // SpeechTranscriber first, unless `-dictation`; Dictation when it has
+        // no Hebrew model here. A model already installed is tried before one
+        // that would have to be downloaded (a failed download takes a while).
+        var candidates: [(name: String, module: any SpeechModule, listen: () -> Void)] = []
+        if SpeechTranscriber.isAvailable, !ProcessInfo.processInfo.arguments.contains("-dictation"),
+           let locale = await SpeechTranscriber.supportedLocale(equivalentTo: Self.locale) {
             let t = SpeechTranscriber(locale: locale, transcriptionOptions: [], reportingOptions: [.volatileResults, .fastResults], attributeOptions: [])
-            transcriber = t
-            module = "analyzer-transcriber"
-            listen(to: t.results) { String($0.text.characters) }
-        } else if let locale = await DictationTranscriber.supportedLocale(equivalentTo: Self.locale) {
+            candidates.append(("analyzer-transcriber", t, { [weak self] in self?.listen(to: t.results) { String($0.text.characters) } }))
+        }
+        if let locale = await DictationTranscriber.supportedLocale(equivalentTo: Self.locale) {
             let t = DictationTranscriber(locale: locale, contentHints: [], transcriptionOptions: [], reportingOptions: [.volatileResults, .frequentFinalization], attributeOptions: [])
-            transcriber = t
-            module = "analyzer-dictation"
-            listen(to: t.results) { String($0.text.characters) }
-        } else {
-            return fallBack("no he-IL")
+            candidates.append(("analyzer-dictation", t, { [weak self] in self?.listen(to: t.results) { String($0.text.characters) } }))
         }
+        var statuses: [AssetInventory.Status] = []
+        for c in candidates { statuses.append(await AssetInventory.status(forModules: [c.module])) }
+        let order = candidates.indices
+            .filter { statuses[$0] != .unsupported }
+            .sorted { (statuses[$0] == .installed ? 0 : 1, $0) < (statuses[$1] == .installed ? 0 : 1, $1) }
 
-        do {
-            if let install = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
-                try await install.downloadAndInstall()
+        var reasons = candidates.indices.filter { statuses[$0] == .unsupported }.map { "\(candidates[$0].name): unsupported" }
+        var format: AVAudioFormat?
+        var input: AsyncStream<AnalyzerInput>.Continuation?
+        for i in order {
+            let c = candidates[i]
+            let (stream, cont) = AsyncStream<AnalyzerInput>.makeStream()
+            do {
+                if let install = try await AssetInventory.assetInstallationRequest(supporting: [c.module]) {
+                    try await install.downloadAndInstall()
+                }
+                guard active else { return }
+                let f = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [c.module])
+                // Keeps the model loaded between rounds, so the next one starts sooner.
+                let analyzer = SpeechAnalyzer(modules: [c.module], options: .init(priority: .userInitiated, modelRetention: .processLifetime))
+                self.analyzer = analyzer
+                self.input = cont
+                module = c.name
+                c.listen()
+                try await analyzer.prepareToAnalyze(in: f)
+                try await analyzer.start(inputSequence: stream)
+                format = f
+                input = cont
+                break
+            } catch {
+                // Some devices list Hebrew but have no model for it.
+                teardown()
+                reasons.append("\(c.name): \(error.localizedDescription)")
             }
-        } catch {
-            return fallBack("model: \(error.localizedDescription)")
         }
-        guard active else { teardown(); return }
-
-        let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber])
-        let (stream, input) = AsyncStream<AnalyzerInput>.makeStream()
-        do {
-            // Keeps the model loaded between rounds, so the next one starts sooner.
-            let analyzer = SpeechAnalyzer(modules: [transcriber], options: .init(priority: .userInitiated, modelRetention: .processLifetime))
-            self.analyzer = analyzer
-            self.input = input
-            try await analyzer.prepareToAnalyze(in: format)
-            try await analyzer.start(inputSequence: stream)
-        } catch {
-            // Some devices list Hebrew but have no model for it.
-            return fallBack(error.localizedDescription)
-        }
+        guard let input else { return fallBack(reasons.isEmpty ? "no he-IL" : reasons.joined(separator: "; ")) }
         guard active else { teardown(); return }
         do {
             try box.tap(engine)
@@ -113,25 +127,27 @@ final class AnalyzerSpeechService: SpeechService {
     }
 
     private func listen<Results: AsyncSequence>(to sequence: Results, text: @escaping (Results.Element) -> String) where Results.Element: SpeechModuleResult {
+        let generation = self.generation
         results = Task { [weak self] in
             var heard = false
             do {
                 for try await r in sequence {
                     let t = text(r)
                     heard = true
-                    guard let self, self.active else { continue }
+                    guard let self, self.active, self.generation == generation else { continue }
                     if !t.isEmpty { self.onEvent?(.result([t], final: r.isFinal, confidence: 0)) }
                 }
             } catch {
-                guard let self, self.active else { return }
+                guard let self, self.active, self.generation == generation else { return }
                 // Failing before any result: the model is missing after all.
-                if heard { self.fail(.other, error.localizedDescription) } else { self.fallBack(error.localizedDescription) }
+                if heard { self.fail(.other, error.localizedDescription) } else { self.fallBack("\(self.module): \(error.localizedDescription)") }
             }
         }
     }
 
     @discardableResult
     private func teardown() -> Task<Void, Never> {
+        generation += 1
         box.set(nil)
         if engine.isRunning { engine.stop() }
         engine.inputNode.removeTap(onBus: 0)
