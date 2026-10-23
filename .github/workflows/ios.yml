@@ -1,0 +1,29 @@
+name: iOS
+
+on:
+  push:
+    branches: [main]
+    paths: ['ios/**', '.github/workflows/ios.yml']
+  pull_request:
+    paths: ['ios/**', '.github/workflows/ios.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test CountingCore
+        working-directory: ios/CountingCore
+        run: swift test
+      - name: Build the app for the simulator
+        working-directory: ios
+        run: >
+          xcodebuild build
+          -project CountToTheSky.xcodeproj
+          -scheme CountToTheSky
+          -destination 'generic/platform=iOS Simulator'
+          CODE_SIGNING_ALLOWED=NO

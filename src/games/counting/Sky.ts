@@ -13,7 +13,7 @@ const STEP = 64;
 /** Where the rocket sits, as a share of the viewport height from the bottom. */
 const ROCKET_VH = 24;
 
-const COLORS = ['#ff5d8f', '#ffb627', '#2ec4d6', '#7bd35a', '#a374ff', '#ff8a3d'];
+export const COLORS = ['#ff5d8f', '#ffb627', '#2ec4d6', '#7bd35a', '#a374ff', '#ff8a3d'];
 
 /** [count, top color, bottom color] — the sky darkens into space. */
 const SKY: [number, string, string][] = [
@@ -25,7 +25,7 @@ const SKY: [number, string, string][] = [
   [100, '#060922', '#1a1450'],
 ];
 
-function rng(seed: number): () => number {
+export function rng(seed: number): () => number {
   let a = seed * 2654435761;
   return () => {
     a = (a + 0x6d2b79f5) | 0;
@@ -59,7 +59,7 @@ export function skyColors(count: number): [string, string] {
 const svg = (w: number, h: number, body: string, cls = '') =>
   `<svg class="${cls}" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true">${body}</svg>`;
 
-const ART = {
+export const ART = {
   cloud: (s: number) =>
     svg(
       120,
@@ -186,10 +186,10 @@ const ART = {
     ),
 };
 
-const STAR_PATH =
+export const STAR_PATH =
   'M50 4 L62 36 L96 37 L69 58 L79 92 L50 72 L21 92 L31 58 L4 37 L38 36Z';
 
-const ROCKET = svg(
+export const ROCKET = svg(
   120,
   200,
   `<path d="M60 6 C88 30 96 74 92 128 L28 128 C24 74 32 30 60 6Z" fill="#fdfdff"/>
@@ -210,7 +210,7 @@ const ROCKET = svg(
   'rocket-body',
 );
 
-const FLAME = svg(
+export const FLAME = svg(
   60,
   90,
   `<path d="M30 0 C46 18 52 40 30 88 C8 40 14 18 30 0Z" fill="#ffb627"/>
@@ -218,7 +218,7 @@ const FLAME = svg(
   'flame',
 );
 
-const GROUND = `
+export const GROUND = `
   <svg class="ground-hills" viewBox="0 0 1200 300" preserveAspectRatio="none" aria-hidden="true">
     <path d="M0 70 Q150 20 320 55 T640 45 T960 30 T1200 60 V300 H0Z" fill="#a3e07f"/>
     <path d="M0 84 Q300 68 600 80 T1200 78 V300 H0Z" fill="#5fc24a"/>
