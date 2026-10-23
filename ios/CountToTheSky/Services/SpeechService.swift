@@ -20,15 +20,33 @@ enum SpeechEvent {
 @MainActor
 protocol SpeechService: AnyObject {
     var onEvent: ((SpeechEvent) -> Void)? { get set }
+    /// When the voice heard now started (debug: how long the recognizer took).
+    var voiceOnset: Date? { get }
+    /// How speech is being recognized, for the debug log.
+    var detail: String { get }
     func start()
     func stop()
 }
 
 /// Shares the audio buffers from the input tap (audio thread) with the
-/// current recognition request (main thread).
+/// current recognition request (main thread), and notes when a voice starts
+/// after a pause, so the debug log can show the recognizer's delay.
 private final class RequestBox: @unchecked Sendable {
     private let lock = NSLock()
     private var request: SFSpeechAudioBufferRecognitionRequest?
+    private var onset: Date?
+    private var lastLoud = Date.distantPast
+    private var voiced = false
+
+    /// Louder than this (RMS, 0...1) is a voice; quieter for `gap` is a pause.
+    private static let threshold: Float = 0.015
+    private static let gap = 0.15
+
+    var voiceOnset: Date? {
+        lock.lock()
+        defer { lock.unlock() }
+        return onset
+    }
 
     func set(_ r: SFSpeechAudioBufferRecognitionRequest?) {
         lock.lock()
@@ -37,9 +55,26 @@ private final class RequestBox: @unchecked Sendable {
     }
 
     func append(_ buffer: AVAudioPCMBuffer) {
+        let loud = Self.level(buffer) > Self.threshold
+        let now = Date()
         lock.lock()
         request?.append(buffer)
+        if loud {
+            if !voiced { onset = now }
+            voiced = true
+            lastLoud = now
+        } else if voiced && now.timeIntervalSince(lastLoud) > Self.gap {
+            voiced = false
+        }
         lock.unlock()
+    }
+
+    private static func level(_ buffer: AVAudioPCMBuffer) -> Float {
+        guard let data = buffer.floatChannelData, buffer.frameLength > 0 else { return 0 }
+        let n = Int(buffer.frameLength)
+        var sum: Float = 0
+        for i in 0..<n { sum += data[0][i] * data[0][i] }
+        return (sum / Float(n)).squareRoot()
     }
 }
 
@@ -50,6 +85,9 @@ private final class RequestBox: @unchecked Sendable {
  *
  * A recognition request ends after about a minute or after an error; this
  * starts a new one right away, backing off when sessions keep dying at once.
+ *
+ * Recognition runs on the device when it can: no round trip to Apple's
+ * servers, so each number shows up sooner. `-serverSpeech` turns that off.
  */
 @MainActor
 final class AppleSpeechService: SpeechService {
@@ -67,6 +105,12 @@ final class AppleSpeechService: SpeechService {
     private var startedAt = Date.distantPast
     private var quickEnds = 0
     private var restart: Task<Void, Never>?
+    /// Set by `-serverSpeech`, or once on-device sessions keep dying at once.
+    private var preferServer = ProcessInfo.processInfo.arguments.contains("-serverSpeech")
+
+    var voiceOnset: Date? { box.voiceOnset }
+    private var onDevice: Bool { !preferServer && recognizer?.supportsOnDeviceRecognition == true }
+    var detail: String { onDevice ? "on-device" : "server" }
 
     /// Call from a user action: the first time, iOS asks for permission.
     func start() {
@@ -99,7 +143,8 @@ final class AppleSpeechService: SpeechService {
             // Cancels our own sounds from the mic, so a "bloop" is not heard as speech.
             try? input.setVoiceProcessingEnabled(true)
             let box = self.box
-            input.installTap(onBus: 0, bufferSize: 1024, format: input.outputFormat(forBus: 0)) { @Sendable buffer, _ in
+            // Small buffers reach the recognizer sooner (iOS may round this up).
+            input.installTap(onBus: 0, bufferSize: 512, format: input.outputFormat(forBus: 0)) { @Sendable buffer, _ in
                 box.append(buffer)
             }
             engine.prepare()
@@ -116,6 +161,7 @@ final class AppleSpeechService: SpeechService {
         req.shouldReportPartialResults = true
         req.taskHint = .dictation
         req.addsPunctuation = false
+        req.requiresOnDeviceRecognition = onDevice
         request = req
         box.set(req)
         startedAt = Date()
@@ -149,6 +195,10 @@ final class AppleSpeechService: SpeechService {
         guard active else { return }
         // Sessions that die right away usually mean a lasting problem; back off.
         quickEnds = Date().timeIntervalSince(startedAt) < 1 ? quickEnds + 1 : 0
+        if quickEnds >= 3 && onDevice {
+            preferServer = true
+            quickEnds = 0
+        }
         if quickEnds > 8 { return fail(.other, "Speech recognition keeps stopping") }
         let delay = min(1000, 60 * quickEnds)
         restart = Task { [weak self] in
@@ -168,6 +218,8 @@ final class AppleSpeechService: SpeechService {
 @MainActor
 final class ScriptedSpeechService: SpeechService {
     var onEvent: ((SpeechEvent) -> Void)?
+    var voiceOnset: Date? { nil }
+    var detail: String { "scripted" }
 
     func start() { onEvent?(.listening(true)) }
     func stop() { onEvent?(.listening(false)) }
@@ -182,6 +234,8 @@ enum AudioSession {
     static func configure() throws {
         let s = AVAudioSession.sharedInstance()
         try s.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothA2DP])
+        // 5 ms audio buffers instead of ~20: the mic and the sounds lag less.
+        try? s.setPreferredIOBufferDuration(0.005)
         try s.setActive(true)
     }
 }

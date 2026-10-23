@@ -57,3 +57,7 @@ Enable them in the scheme (Product → Scheme → Edit Scheme → Arguments):
 - `-debug` — transcript log at the bottom, with "copy log".
 - `-scriptedSpeech` — no microphone; type transcripts into the debug box (use
   with `-debug`).
+- `-serverSpeech` — recognize on Apple's servers even when the device can do
+  it on its own (on-device is the default: it answers faster). The debug log
+  shows which one is used (`LISTEN on-device`), and after each counted number
+  roughly how long it took from the start of the voice (`… 420ms`).

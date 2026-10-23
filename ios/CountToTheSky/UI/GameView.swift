@@ -116,11 +116,11 @@ private struct BigNumber: View {
             } keyframes: { _ in
                 KeyframeTrack(\.scale) {
                     MoveKeyframe(1.45)
-                    SpringKeyframe(1, duration: 0.45, spring: .bouncy)
+                    SpringKeyframe(1, duration: 0.3, spring: .bouncy)
                 }
                 KeyframeTrack(\.angle) {
                     MoveKeyframe(-6)
-                    SpringKeyframe(0, duration: 0.45, spring: .bouncy)
+                    SpringKeyframe(0, duration: 0.3, spring: .bouncy)
                 }
             }
             .allowsHitTesting(false)

@@ -172,7 +172,10 @@ final class CountingGameModel {
         case let .result(alts, isFinal, confidence):
             onSpeech(alts, isFinal: isFinal, confidence: confidence)
         case let .listening(on):
-            if on { judge.newSession() }
+            if on {
+                judge.newSession()
+                debugLog("LISTEN \(speech.detail)")
+            }
             setListening(on)
         case let .error(kind, detail):
             debugLog("ERROR \(kind) \(detail)")
@@ -191,7 +194,9 @@ final class CountingGameModel {
         let kind = isFinal ? "FINAL " + String(format: "%.2f", confidence) : "interim"
         let texts = alts.map { "\"\($0)\"" }.joined(separator: " | ")
         let wrong = heard.wrong.map { " wrong \($0)" } ?? ""
-        debugLog("\(kind) \(texts) → +\(heard.counted)\(wrong)")
+        // From when the voice started to now: roughly how long recognition took.
+        let lag = heard.counted.isEmpty ? "" : speech.voiceOnset.map { " \(Int(Date().timeIntervalSince($0) * 1000))ms" } ?? ""
+        debugLog("\(kind) \(texts) → +\(heard.counted)\(wrong)\(lag)")
         for (i, n) in heard.counted.enumerated() {
             if i == 0 { onCount(n) } else { later(Double(i) * 0.14) { [weak self] in self?.onCount(n) } }
         }
