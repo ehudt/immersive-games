@@ -23,6 +23,11 @@ simulator with a working microphone.
     synthesized sounds and the Hebrew narrator.
   - `UI/` — the sky, cards, confetti and styles. Fonts: Varela Round (Hebrew)
     and Fredoka (digits), both OFL, bundled in `Fonts/`.
+  - `Assets.xcassets/Art/` — the web's drawings (rocket, clouds, Saturn…) as
+    vector SVGs, generated from `src/games/counting/Sky.ts` by
+    `node --experimental-strip-types scripts/export-ios-art.ts`. Rerun it after
+    changing a drawing. The scenery is placed by `decorations(at:)` in
+    CountingCore, the same seeded rules as the web.
 
 ## Launch arguments
 

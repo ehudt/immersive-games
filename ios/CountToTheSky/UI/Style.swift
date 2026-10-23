@@ -5,6 +5,8 @@ import SwiftUI
 /// Colors and fonts from src/games/counting/counting.css.
 enum Palette {
     static let plum = Color(hex: 0x2B2350)
+    /// Secondary card text.
+    static let sub = Color(hex: 0x4D4673)
     static let pink = Color(hex: 0xFF5D8F)
     static let sun = Color(hex: 0xFFB627)
     static let teal = Color(hex: 0x2EC4D6)
@@ -75,8 +77,8 @@ struct Card<Content: View>: View {
             .multilineTextAlignment(.center)
             .foregroundStyle(Palette.plum)
             .padding(24)
-            .frame(maxWidth: 560)
-            .background(RoundedRectangle(cornerRadius: 32).fill(.white).shadow(color: .black.opacity(0.18), radius: 24, y: 10))
+            .frame(maxWidth: 520)
+            .background(RoundedRectangle(cornerRadius: 32).fill(.white.opacity(0.95)).shadow(color: .black.opacity(0.18), radius: 24, y: 10))
             .padding(.horizontal, 16)
     }
 }

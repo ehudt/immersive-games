@@ -7,7 +7,6 @@ struct GameView: View {
     var debug = false
 
     @State private var confetti = Confetti()
-    @State private var pop = false
     @State private var praise: (n: Int, text: String)?
     @State private var praiseID = 0
 
@@ -18,45 +17,42 @@ struct GameView: View {
     }
 
     var body: some View {
-        ZStack {
-            SkyView(count: model.count, fuel: model.fuel, flying: playing, celebrating: celebrating)
-            ConfettiView(confetti: confetti)
+        GeometryReader { geo in
+            let layout = SkyLayout(size: geo.size)
+            ZStack(alignment: .top) {
+                SkyView(count: model.count, fuel: model.fuel, flying: playing, celebrating: celebrating)
 
-            VStack(spacing: 0) {
-                TopBar(model: model)
                 if playing && model.count > 0 {
-                    Text(String(model.count))
-                        .font(.digits(140))
-                        .minimumScaleFactor(0.5)
-                        .foregroundStyle(.white)
-                        .shadow(color: Palette.count(model.count), radius: 0, y: 6)
-                        .shadow(color: .black.opacity(0.18), radius: 12, y: 10)
-                        .scaleEffect(pop ? 1.45 : 1)
-                        .rotationEffect(.degrees(pop ? -6 : 0))
-                        .accessibilityLabel(Text(String(model.count)))
+                    BigNumber(n: model.count, size: layout.clamp(88, 26, 230))
+                        .padding(.top, max(64, geo.size.height * 0.07))
                 }
-                Spacer()
-                if playing { ListenIndicator(model: model).padding(.bottom, 24) }
-            }
 
-            if let praise {
-                VStack(spacing: 4) {
-                    Text("\(praise.n)!").font(.digits(64))
-                    Text(praise.text).font(.game(40).bold())
+                if let praise {
+                    PraiseBanner(n: praise.n, text: praise.text, size: layout.clamp(36, 10, 80))
+                        .id(praiseID)
+                        .padding(.top, geo.size.height * 0.4)
                 }
-                .foregroundStyle(.white)
-                .shadow(color: Palette.pink, radius: 0, y: 4)
-                .id(praiseID)
-                .transition(.scale(scale: 0.4).combined(with: .opacity))
-            }
 
-            panel
+                ConfettiView(confetti: confetti)
+
+                VStack(spacing: 0) {
+                    TopBar(model: model)
+                    Spacer()
+                    if playing { ListenIndicator(model: model).padding(.bottom, 16) }
+                }
+
+                panel
+                    .padding(.top, max(70, geo.size.height * 0.08))
+                    .frame(maxHeight: .infinity, alignment: .top)
+            }
+            .onChange(of: playing) { _, on in if on { confetti.clear() } }
+            .onChange(of: model.lastEffect) { _, effect in
+                if let effect { react(to: effect.event, layout: layout) }
+            }
         }
         .environment(\.layoutDirection, .rightToLeft)
         .environment(\.locale, Locale(identifier: "he"))
-        .onChange(of: model.lastEffect) { _, effect in
-            if let effect { react(to: effect.event) }
-        }
+        .sensoryFeedback(.impact(weight: .light, intensity: 0.8), trigger: model.count) { old, new in new > old }
         .overlay(alignment: .bottom) {
             if debug { DebugPanel(model: model) }
         }
@@ -75,29 +71,117 @@ struct GameView: View {
         }
     }
 
-    private func react(to event: CountingGameModel.Event) {
+    private func react(to event: CountingGameModel.Event, layout: SkyLayout) {
         switch event {
         case .counted:
-            pop = true
-            withAnimation(.spring(response: 0.45, dampingFraction: 0.45)) { pop = false }
-            confetti.burst(6, y: 0.7)
+            let p = layout.rocketPoint
+            confetti.sparkle(x: p.x, y: p.y + 60)
         case let .milestone(n, text):
             confetti.burst(n % 50 == 0 ? 120 : 60)
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             praiseID += 1
-            withAnimation(.spring(duration: 0.5)) { praise = (n, text) }
+            praise = (n, text)
             let id = praiseID
             Task {
-                try? await Task.sleep(for: .seconds(1.6))
-                if praiseID == id { withAnimation { praise = nil } }
+                try? await Task.sleep(for: .seconds(2.2))
+                if praiseID == id { praise = nil }
             }
-        case .finished:
-            withAnimation { praise = nil }
+        case let .finished(record):
+            praise = nil
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
             confetti.burst(110)
+            confetti.fireworks(record ? 7 : 4)
             Task {
                 try? await Task.sleep(for: .seconds(0.6))
-                confetti.burst(80, y: 0.2)
+                confetti.rain(4)
             }
         }
+    }
+}
+
+/// The number just counted, popping in big (`.c-number.pop`).
+private struct BigNumber: View {
+    var n: Int
+    var size: CGFloat
+
+    var body: some View {
+        Text(String(n))
+            .font(.digits(size))
+            .foregroundStyle(.white)
+            .shadow(color: Palette.count(n), radius: 0, y: size * 0.05)
+            .shadow(color: .black.opacity(0.12), radius: 0, y: size * 0.09)
+            .shadow(color: .black.opacity(0.18), radius: size * 0.15, y: size * 0.12)
+            .keyframeAnimator(initialValue: Pop(), trigger: n) { content, v in
+                content.scaleEffect(v.scale).rotationEffect(.degrees(v.angle))
+            } keyframes: { _ in
+                KeyframeTrack(\.scale) {
+                    MoveKeyframe(1.45)
+                    SpringKeyframe(1, duration: 0.45, spring: .bouncy)
+                }
+                KeyframeTrack(\.angle) {
+                    MoveKeyframe(-6)
+                    SpringKeyframe(0, duration: 0.45, spring: .bouncy)
+                }
+            }
+            .allowsHitTesting(false)
+            .accessibilityLabel(Text(String(n)))
+    }
+
+    struct Pop {
+        var scale = 1.0
+        var angle = 0.0
+    }
+}
+
+/// "30! כל הכבוד!" every ten numbers (`.c-praise`).
+private struct PraiseBanner: View {
+    var n: Int
+    var text: String
+    var size: CGFloat
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text("\(n)!")
+                .font(.digits(size))
+                .foregroundStyle(Palette.sun)
+                .shadow(color: .white, radius: 0, x: 1.5, y: 1.5)
+                .shadow(color: .white, radius: 0, x: -1.5, y: -1.5)
+                .shadow(color: .white, radius: 0, x: 1.5, y: -1.5)
+                .shadow(color: .white, radius: 0, x: -1.5, y: 1.5)
+            Text(text)
+                .font(.game(size * 0.8).bold())
+                .foregroundStyle(.white)
+                .shadow(color: Palette.pink, radius: 0, y: 4)
+                .shadow(color: .black.opacity(0.2), radius: 10, y: 8)
+        }
+        .allowsHitTesting(false)
+        .keyframeAnimator(initialValue: Frame(), trigger: go) { content, v in
+            content.opacity(v.opacity).scaleEffect(v.scale).offset(y: v.y)
+        } keyframes: { _ in
+            KeyframeTrack(\.opacity) {
+                LinearKeyframe(1, duration: 0.33)
+                LinearKeyframe(1, duration: 1.43)
+                LinearKeyframe(0, duration: 0.44)
+            }
+            KeyframeTrack(\.scale) {
+                CubicKeyframe(1.1, duration: 0.33)
+                CubicKeyframe(1, duration: 0.22)
+            }
+            KeyframeTrack(\.y) {
+                LinearKeyframe(0, duration: 0.55)
+                CubicKeyframe(-10, duration: 1.21)
+                CubicKeyframe(-40, duration: 0.44)
+            }
+        }
+        .onAppear { go = true }
+    }
+
+    @State private var go = false
+
+    struct Frame {
+        var opacity = 0.0
+        var scale = 0.3
+        var y = 0.0
     }
 }
 
@@ -142,22 +226,38 @@ private struct IconButton: View {
     }
 }
 
+/// "מקשיבים…" with the mic and sound bars (`.c-listen`).
 private struct ListenIndicator: View {
     var model: CountingGameModel
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: "mic.fill")
-                .foregroundStyle(model.listening ? Palette.pink : .gray)
-                .symbolEffect(.variableColor.iterative, isActive: model.hearing)
-            Text(model.listenText).font(.game(20))
+            Text("🎤")
+                .font(.system(size: 24))
+                .grayscale(model.listening ? 0 : 1)
+                .opacity(model.listening ? 1 : 0.6)
+                .phaseAnimator([false, true]) { v, big in
+                    v.scaleEffect(model.listening && big ? 1.12 : 1)
+                } animation: { _ in .easeInOut(duration: 1.4) }
+            TimelineView(.animation(paused: !model.hearing)) { tl in
+                let t = tl.date.timeIntervalSinceReferenceDate
+                HStack(spacing: 3) {
+                    ForEach(0..<4) { i in
+                        let wave = (1 - cos(2 * .pi * (t - Double(i) * 0.1) / 0.8)) / 2
+                        Capsule()
+                            .fill(Palette.teal)
+                            .frame(width: 5, height: model.hearing ? 6 + 16 * wave : 6)
+                    }
+                }
+                .frame(height: 22)
+            }
+            Text(model.listenText).font(.game(19).bold())
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 10)
-        .background(Capsule().fill(.white.opacity(0.9)))
+        .background(Capsule().fill(.white.opacity(0.9)).shadow(color: .black.opacity(0.12), radius: 8, y: 4))
         .foregroundStyle(Palette.plum)
-        .scaleEffect(model.hearing ? 1.06 : 1)
-        .animation(.easeInOut(duration: 0.25), value: model.hearing)
+        .environment(\.layoutDirection, .rightToLeft)
     }
 }
 
@@ -166,31 +266,45 @@ private struct IntroCard: View {
 
     var body: some View {
         Card {
-            Text("סופרים עד השמיים").font(.game(38).bold()).foregroundStyle(Palette.pink)
-            Text("סופרים בקול רם, עד המספר הכי גבוה שאפשר:\n**אחת, שתיים, שלוש…**").font(.game(22))
-            Text("כל מספר נכון מקפיץ את הרקטה למעלה 🚀\nטעינו או נתקענו? המשחק נגמר ואפשר לנסות שוב.").font(.game(17)).opacity(0.8)
+            Text("סופרים עד השמיים").font(.game(44).bold()).foregroundStyle(Palette.pink)
+            (Text("סופרים בקול רם, עד המספר הכי גבוה שאפשר:\n") + Text("אחת, שתיים, שלוש…").bold().foregroundColor(Palette.pink))
+                .font(.game(22))
+            Text("כל מספר נכון מקפיץ את הרקטה למעלה 🚀\nטעינו או נתקענו? המשחק נגמר ואפשר לנסות שוב.")
+                .font(.game(17))
+                .foregroundStyle(Palette.sub)
             if !model.speechSupported {
-                Text("המכשיר הזה לא תומך בזיהוי דיבור בעברית.").font(.game(17)).foregroundStyle(.red)
+                Text("המכשיר הזה לא תומך בזיהוי דיבור בעברית.")
+                    .font(.game(17))
+                    .foregroundStyle(Color(hex: 0x8A4B00))
+                    .padding(10)
+                    .background(RoundedRectangle(cornerRadius: 16).fill(Color(hex: 0xFFF1D6)))
             }
-            HStack(spacing: 8) {
-                Text("⏱️ זמן לחשוב:").font(.game(17))
-                ForEach(Strings.patience, id: \.0) { item in
-                    let p = item.0, label = item.1
-                    let on = model.patience == p
-                    Button(label) { model.patience = p }
-                        .font(.game(17).bold())
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Capsule().fill(on ? Palette.teal : Palette.secondary))
-                        .foregroundStyle(on ? .white : Palette.plum)
-                        .accessibilityAddTraits(on ? .isSelected : [])
+            VStack(spacing: 6) {
+                Text("⏱️ זמן לחשוב:").font(.game(16)).foregroundStyle(Palette.sub)
+                HStack(spacing: 6) {
+                    ForEach(Strings.patience, id: \.0) { item in
+                        let p = item.0, label = item.1
+                        let on = model.patience == p
+                        Button(label) { model.patience = p }
+                            .font(.game(16).weight(.semibold))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 6)
+                            .foregroundStyle(on ? .white : Palette.plum)
+                            .background(Capsule().fill(on ? Palette.teal : Palette.secondary))
+                            .background(Capsule().fill(on ? Color(hex: 0x1D8F9C) : Palette.secondaryShadow).offset(y: 3))
+                            .accessibilityAddTraits(on ? .isSelected : [])
+                    }
                 }
             }
+            .padding(.top, 4)
             Button("יוצאים לדרך!") { model.play() }
                 .buttonStyle(CandyButtonStyle())
                 .disabled(!model.speechSupported)
-                .padding(.top, 6)
-            Text("המשחק משתמש במיקרופון. זיהוי הדיבור נעשה על ידי שירות זיהוי הדיבור של Apple.").font(.game(13)).opacity(0.6)
+                .opacity(model.speechSupported ? 1 : 0.45)
+                .padding(.top, 8)
+            Text("המשחק משתמש במיקרופון. זיהוי הדיבור נעשה על ידי שירות זיהוי הדיבור של Apple.")
+                .font(.game(13))
+                .foregroundStyle(Color(hex: 0x8A86A8))
         }
     }
 }
@@ -198,19 +312,42 @@ private struct IntroCard: View {
 private struct ResultCard: View {
     var model: CountingGameModel
     var result: CountingGameModel.Result
+    @State private var shown = false
 
     var body: some View {
         Card {
-            Text("🏆").font(.system(size: 64))
-            Text(Strings.cheer(result.count)).font(.game(34).bold()).foregroundStyle(Palette.pink)
-            Text("ספרת עד").font(.game(22))
-            Text(String(result.count)).font(.digits(96)).foregroundStyle(Palette.count(result.count))
+            Text("🏆")
+                .font(.system(size: 80))
+                .phaseAnimator([false, true]) { v, on in
+                    v.rotationEffect(.degrees(on ? 8 : -8)).scaleEffect(on ? 1.1 : 1)
+                } animation: { _ in .easeInOut(duration: 1.2) }
+            Text(Strings.cheer(result.count)).font(.game(34).bold())
+            Text("ספרת עד").font(.game(21)).foregroundStyle(Palette.sub)
+            Text(String(result.count))
+                .font(.digits(110))
+                .foregroundStyle(Palette.sun)
+                .shadow(color: Palette.plum, radius: 0, x: 2.5, y: 2.5)
+                .shadow(color: Palette.plum, radius: 0, x: -2.5, y: -2.5)
+                .shadow(color: Palette.plum, radius: 0, x: 2.5, y: -2.5)
+                .shadow(color: Palette.plum, radius: 0, x: -2.5, y: 2.5)
+                .shadow(color: Palette.plum.opacity(0.15), radius: 0, y: 8)
+                .scaleEffect(shown ? 1 : 0.3)
+                .opacity(shown ? 1 : 0)
+                .onAppear { withAnimation(.bouncy(duration: 0.7, extraBounce: 0.25).delay(0.2)) { shown = true } }
             if result.record && result.count > 1 {
-                Text("⭐ שיא חדש! ⭐").font(.game(24).bold()).foregroundStyle(Palette.sun)
+                Text("⭐ שיא חדש! ⭐")
+                    .font(.game(24).bold())
+                    .foregroundStyle(Palette.pink)
+                    .phaseAnimator([false, true]) { v, on in v.scaleEffect(on ? 1.1 : 1) } animation: { _ in .easeInOut(duration: 0.8) }
             } else {
-                Text("השיא: \(model.best)").font(.game(18)).opacity(0.8)
+                Text("השיא: \(model.best)").font(.game(18)).foregroundStyle(Palette.sub)
             }
-            Text("💡 אחרי \(result.count) בא \(result.count + 1)").font(.game(18))
+            Text("💡 אחרי \(result.count) בא \(result.count + 1)")
+                .font(.game(17))
+                .foregroundStyle(Color(hex: 0x1D7F8C))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 5)
+                .background(Capsule().fill(Color(hex: 0xEAF9FB)))
             Buttons(model: model, again: "עוד פעם!")
         }
     }

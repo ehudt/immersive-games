@@ -31,7 +31,7 @@ final class CountingGameModel {
 
     /// One-shot effects for the views: a new number, every ten, the end.
     enum Event: Equatable {
-        case counted(Int), milestone(Int, praise: String), finished
+        case counted(Int), milestone(Int, praise: String), finished(record: Bool)
     }
 
     private(set) var phase: Phase = .intro
@@ -129,6 +129,8 @@ final class CountingGameModel {
         stopPlaying()
         narrator.stop()
         cancelPending()
+        // Back to the launch pad.
+        count = 0
         phase = .intro
     }
 
@@ -148,7 +150,7 @@ final class CountingGameModel {
             defaults.set(n, forKey: Self.bestKey)
         }
         sfx.victory()
-        emit(.finished)
+        emit(.finished(record: record))
         phase = .over(Result(count: n, wrong: wrong, record: record))
         later(1.7) { [weak self] in
             guard let self, !self.muted, case .over = self.phase else { return }

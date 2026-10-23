@@ -37,10 +37,15 @@ private let SKY: [(Int, RGB, RGB)] = [
 
 /// The sky gradient (top, bottom) at a count.
 public func skyColors(_ count: Int) -> (top: RGB, bottom: RGB) {
-    for i in 1..<SKY.count where count <= SKY[i].0 {
+    skyColors(at: Double(count))
+}
+
+/// The same, between counts too, so the sky can blend smoothly as it changes.
+public func skyColors(at count: Double) -> (top: RGB, bottom: RGB) {
+    for i in 1..<SKY.count where count <= Double(SKY[i].0) {
         let (c0, t0, b0) = SKY[i - 1]
         let (c1, t1, b1) = SKY[i]
-        let t = Double(count - c0) / Double(c1 - c0)
+        let t = max(0, (count - Double(c0)) / Double(c1 - c0))
         return (t0.mixed(with: t1, t), b0.mixed(with: b1, t))
     }
     return (SKY[SKY.count - 1].1, SKY[SKY.count - 1].2)
