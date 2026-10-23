@@ -55,7 +55,8 @@ function startCounting(): void {
   cleanup?.();
   history.replaceState(null, '', gameUrl('counting'));
   app.innerHTML = '';
-  const game = new CountingGame(app, { debug, onExit: () => showHome() });
+  const onDevice = new URLSearchParams(location.search).get('speech') === 'device';
+  const game = new CountingGame(app, { debug, onDevice, onExit: () => showHome() });
   cleanup = () => game.dispose();
   game.start();
   if (debug) (window as unknown as { game: CountingGame }).game = game;
