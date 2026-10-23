@@ -39,8 +39,9 @@ simulator with a working microphone.
   picked up without editing the project).
   - `Game/CountingGameModel.swift` — phases, the patience clock, best score
     (`counting.best` / `counting.patience` in UserDefaults, as on the web).
-  - `Services/` — `AppleSpeechService` (`SFSpeechRecognizer`, he-IL, restarted
-    session after session), a `ScriptedSpeechService` for typed transcripts,
+  - `Services/` — `AnalyzerSpeechService` (`SpeechAnalyzer`, iOS 26+),
+    `AppleSpeechService` (`SFSpeechRecognizer`, he-IL, restarted session
+    after session), a `ScriptedSpeechService` for typed transcripts,
     synthesized sounds (no spoken voice lines).
   - `UI/` — the sky, cards, confetti and styles. Fonts: Varela Round (Hebrew)
     and Fredoka (digits), both OFL, bundled in `Fonts/`.
@@ -57,7 +58,10 @@ Enable them in the scheme (Product → Scheme → Edit Scheme → Arguments):
 - `-debug` — transcript log at the bottom, with "copy log".
 - `-scriptedSpeech` — no microphone; type transcripts into the debug box (use
   with `-debug`).
-- `-serverSpeech` — recognize on Apple's servers even when the device can do
+- `-legacySpeech` — on iOS 26+, use the older `SFSpeechRecognizer` instead of
+  `SpeechAnalyzer` (the default there; it falls back to the older one by
+  itself when it has no Hebrew model, and `LISTEN …` says which is used).
+- `-serverSpeech` — with the older recognizer, recognize on Apple's servers even when the device can do
   it on its own (on-device is the default: it answers faster). The debug log
   shows which one is used (`LISTEN on-device`), and after each counted number
   roughly how long it took from the start of the voice (`… 420ms`).

@@ -28,12 +28,12 @@ protocol SpeechService: AnyObject {
     func stop()
 }
 
-/// Shares the audio buffers from the input tap (audio thread) with the
-/// current recognition request (main thread), and notes when a voice starts
-/// after a pause, so the debug log can show the recognizer's delay.
-private final class RequestBox: @unchecked Sendable {
+/// Shares the audio buffers from the input tap (audio thread) with whatever
+/// consumes them (main thread sets it), and notes when a voice starts after a
+/// pause, so the debug log can show the recognizer's delay.
+final class MicBox: @unchecked Sendable {
     private let lock = NSLock()
-    private var request: SFSpeechAudioBufferRecognitionRequest?
+    private var sink: ((AVAudioPCMBuffer) -> Void)?
     private var onset: Date?
     private var lastLoud = Date.distantPast
     private var voiced = false
@@ -48,9 +48,9 @@ private final class RequestBox: @unchecked Sendable {
         return onset
     }
 
-    func set(_ r: SFSpeechAudioBufferRecognitionRequest?) {
+    func set(_ s: ((AVAudioPCMBuffer) -> Void)?) {
         lock.lock()
-        request = r
+        sink = s
         lock.unlock()
     }
 
@@ -58,7 +58,7 @@ private final class RequestBox: @unchecked Sendable {
         let loud = Self.level(buffer) > Self.threshold
         let now = Date()
         lock.lock()
-        request?.append(buffer)
+        sink?(buffer)
         if loud {
             if !voiced { onset = now }
             voiced = true
@@ -67,6 +67,20 @@ private final class RequestBox: @unchecked Sendable {
             voiced = false
         }
         lock.unlock()
+    }
+
+    /// Feeds the box from the microphone: our own sounds are cancelled from
+    /// it, so a "bloop" is not heard as speech.
+    func tap(_ engine: AVAudioEngine) throws {
+        try AudioSession.configure()
+        let input = engine.inputNode
+        try? input.setVoiceProcessingEnabled(true)
+        // Small buffers reach the recognizer sooner (iOS may round this up).
+        input.installTap(onBus: 0, bufferSize: 512, format: input.outputFormat(forBus: 0)) { @Sendable [self] buffer, _ in
+            append(buffer)
+        }
+        engine.prepare()
+        try engine.start()
     }
 
     private static func level(_ buffer: AVAudioPCMBuffer) -> Float {
@@ -98,7 +112,7 @@ final class AppleSpeechService: SpeechService {
 
     private let recognizer = SFSpeechRecognizer(locale: AppleSpeechService.locale)
     private let engine = AVAudioEngine()
-    private let box = RequestBox()
+    private let box = MicBox()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private var active = false
@@ -138,17 +152,7 @@ final class AppleSpeechService: SpeechService {
         guard let recognizer else { return fail(.language, "no he-IL recognizer") }
         guard recognizer.isAvailable else { return fail(.network, "recognizer unavailable") }
         do {
-            try AudioSession.configure()
-            let input = engine.inputNode
-            // Cancels our own sounds from the mic, so a "bloop" is not heard as speech.
-            try? input.setVoiceProcessingEnabled(true)
-            let box = self.box
-            // Small buffers reach the recognizer sooner (iOS may round this up).
-            input.installTap(onBus: 0, bufferSize: 512, format: input.outputFormat(forBus: 0)) { @Sendable buffer, _ in
-                box.append(buffer)
-            }
-            engine.prepare()
-            try engine.start()
+            try box.tap(engine)
         } catch {
             return fail(.noMicrophone, error.localizedDescription)
         }
@@ -163,7 +167,7 @@ final class AppleSpeechService: SpeechService {
         req.addsPunctuation = false
         req.requiresOnDeviceRecognition = onDevice
         request = req
-        box.set(req)
+        box.set { req.append($0) }
         startedAt = Date()
         onEvent?(.listening(true))
         task = recognizer.recognitionTask(with: req) { @Sendable [weak self] result, error in

@@ -87,7 +87,11 @@ final class CountingGameModel {
         patience = defaults.string(forKey: Self.patienceKey).flatMap(Patience.init(rawValue:)) ?? .long
         switch choice {
         case .apple:
-            speech = AppleSpeechService()
+            if #available(iOS 26, *), !ProcessInfo.processInfo.arguments.contains("-legacySpeech") {
+                speech = AnalyzerSpeechService()
+            } else {
+                speech = AppleSpeechService()
+            }
             scripted = nil
             speechSupported = AppleSpeechService.supported
         case .scripted:
