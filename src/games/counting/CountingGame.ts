@@ -2,7 +2,6 @@ import './counting.css';
 import { SpeechListener, type SpeechErrorKind } from '../../core/speech/SpeechListener';
 import { CountJudge, patienceMs, type Patience } from './CountJudge';
 import { Confetti } from './Confetti';
-import { milestoneAt } from './scenery';
 import { Sky } from './Sky';
 import { CountingSfx } from './sounds';
 
@@ -360,10 +359,7 @@ export class CountingGame {
     this.sfx?.milestone();
     this.fx.burst(n % 50 === 0 ? 120 : 60);
     const el = this.ui.praise;
-    // Say hello to the friend the rocket meets here.
-    const friend = milestoneAt(n);
-    const word = friend ? `שלום, ${friend.name}!` : PRAISE[Math.floor(Math.random() * PRAISE.length)];
-    el.innerHTML = `<span class="n">${n}!</span><span class="w">${word}</span>`;
+    el.innerHTML = `<span class="n">${n}!</span><span class="w">${PRAISE[Math.floor(Math.random() * PRAISE.length)]}</span>`;
     el.classList.remove('show');
     void el.offsetWidth;
     el.classList.add('show');

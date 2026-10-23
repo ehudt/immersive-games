@@ -1,3 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120" width="200" height="120"><g transform="rotate(-12 100 62)"><ellipse cx="100" cy="62" rx="94" ry="20" fill="none" stroke="#e8c88a" stroke-width="8"/>
-<circle cx="100" cy="60" r="42" fill="#ffc46b"/><path d="M62 48 Q100 40 138 48 M60 68 Q100 60 140 68" stroke="#f09a4a" stroke-width="6" fill="none"/>
-<path d="M6 62 A94 20 0 0 0 194 62" fill="none" stroke="#ffe3a8" stroke-width="8"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120" width="200" height="120"><defs><radialGradient id="stB" cx="0.35" cy="0.3" r="0.8"><stop offset="0.00" stop-color="#ffe4ad" stop-opacity="1"/><stop offset="0.50" stop-color="#ffc46b" stop-opacity="1"/><stop offset="1.00" stop-color="#d9893a" stop-opacity="1"/></radialGradient><linearGradient id="stR" x1="0" y1="0" x2="0" y2="1"><stop offset="0.00" stop-color="#fff3d6" stop-opacity="1"/><stop offset="0.50" stop-color="#e8c88a" stop-opacity="1"/><stop offset="1.00" stop-color="#c9a060" stop-opacity="1"/></linearGradient><clipPath id="stC"><circle cx="100" cy="60" r="42"/></clipPath></defs>
+<g transform="rotate(-12 100 62)"><ellipse cx="100" cy="62" rx="94" ry="20" fill="none" stroke="url(#stR)" stroke-width="9"/>
+<ellipse cx="100" cy="62" rx="80" ry="15" fill="none" stroke="#f5dfae" stroke-width="3" opacity="0.6"/>
+<circle cx="100" cy="60" r="42" fill="url(#stB)"/>
+<g clip-path="url(#stC)"><path d="M50 46 Q100 38 150 46 M48 62 Q100 54 152 62 M52 76 Q100 70 148 76" stroke="#e8954a" stroke-width="5" fill="none" opacity="0.7"/></g>
+<path d="M6 62 A94 20 0 0 0 194 62" fill="none" stroke="url(#stR)" stroke-width="9"/>
+<path d="M20 62 A80 15 0 0 0 180 62" fill="none" stroke="#f5dfae" stroke-width="3" opacity="0.6"/></g></svg>

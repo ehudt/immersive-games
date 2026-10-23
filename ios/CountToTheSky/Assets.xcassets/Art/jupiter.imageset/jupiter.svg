@@ -1,6 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120"><defs><clipPath id="jp"><circle cx="60" cy="60" r="56"/></clipPath></defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120"><defs><clipPath id="jp"><circle cx="60" cy="60" r="56"/></clipPath><radialGradient id="jpS" cx="0.32" cy="0.28" r="0.8"><stop offset="0.00" stop-color="#ffffff" stop-opacity="0.45"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0"/><stop offset="1.00" stop-color="#0b1030" stop-opacity="0.3"/></radialGradient></defs>
 <circle cx="60" cy="60" r="56" fill="#ecc89c"/>
 <g clip-path="url(#jp)"><rect y="14" width="120" height="10" fill="#c98a5a"/><rect y="34" width="120" height="12" fill="#b8704a"/>
 <rect y="56" width="120" height="8" fill="#f6e2c0"/><rect y="72" width="120" height="12" fill="#c98a5a"/><rect y="94" width="120" height="8" fill="#b8704a"/>
-<ellipse cx="78" cy="78" rx="12" ry="7" fill="#d9573a"/></g>
-<circle cx="40" cy="38" r="16" fill="#fff" opacity="0.18"/></svg>
+<path d="M0 30 Q30 26 60 30 T120 30 M0 68 Q30 64 60 68 T120 68" stroke="#f6e2c0" stroke-width="2" fill="none" opacity="0.7"/>
+<ellipse cx="78" cy="78" rx="12" ry="7" fill="#d9573a"/><ellipse cx="77" cy="77" rx="7" ry="3.5" fill="#ef7a55"/></g>
+<circle cx="60" cy="60" r="56" fill="url(#jpS)"/></svg>

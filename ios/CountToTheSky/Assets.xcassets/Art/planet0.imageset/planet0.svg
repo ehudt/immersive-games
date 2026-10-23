@@ -1,2 +1,3 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 90" width="90" height="90"><circle cx="45" cy="45" r="40" fill="#ff5d8f"/><path d="M10 38 Q45 30 80 38 M8 54 Q45 62 82 54" stroke="#fff" stroke-width="5" opacity="0.3" fill="none"/>
-<circle cx="32" cy="30" r="9" fill="#fff" opacity="0.25"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 90" width="90" height="90"><defs><radialGradient id="plff5d8f" cx="0.32" cy="0.28" r="0.75"><stop offset="0.00" stop-color="#ffffff" stop-opacity="0.45"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0"/><stop offset="1.00" stop-color="#0b1030" stop-opacity="0.3"/></radialGradient></defs>
+<circle cx="45" cy="45" r="40" fill="#ff5d8f"/><path d="M10 38 Q45 30 80 38 M8 54 Q45 62 82 54" stroke="#fff" stroke-width="5" opacity="0.3" fill="none"/>
+<circle cx="45" cy="45" r="40" fill="url(#plff5d8f)"/></svg>

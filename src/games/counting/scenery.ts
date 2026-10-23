@@ -24,44 +24,42 @@ export interface Milestone {
   count: number;
   /** The drawing (ART in skyArt.ts, an image of the same name on iOS). */
   art: string;
-  /** Hebrew name, for the greeting ("שלום, דרקון!"). */
-  name: string;
   /** Width in pixels (points on iOS), at most a third of the screen. */
   width: number;
 }
 
 /** A new friend every ten numbers, from the hills up to the sun. */
 export const MILESTONES: Milestone[] = [
-  { count: 10, art: 'redBalloon', name: 'בלון', width: 56 },
-  { count: 20, art: 'kite', name: 'עפיפון', width: 80 },
-  { count: 30, art: 'songbird', name: 'ציפור', width: 76 },
-  { count: 40, art: 'rcPlane', name: 'מטוס על שלט', width: 110 },
-  { count: 50, art: 'eagle', name: 'נשר', width: 170 },
-  { count: 60, art: 'hotAir', name: 'כדור פורח', width: 110 },
-  { count: 70, art: 'cessna', name: 'מטוס קטן', width: 160 },
-  { count: 80, art: 'helicopter', name: 'מסוק', width: 150 },
-  { count: 90, art: 'dragon', name: 'דרקון', width: 180 },
-  { count: 100, art: 'plane', name: 'מטוס נוסעים', width: 200 },
-  { count: 110, art: 'zeppelin', name: 'ספינת אוויר', width: 200 },
-  { count: 120, art: 'jets', name: 'מטוסי סילון', width: 180 },
-  { count: 130, art: 'weatherBalloon', name: 'בלון מזג אוויר', width: 84 },
-  { count: 140, art: 'carpet', name: 'שטיח מעופף', width: 160 },
-  { count: 150, art: 'shuttle', name: 'מעבורת חלל', width: 96 },
-  { count: 160, art: 'satellite', name: 'לוויין', width: 140 },
-  { count: 170, art: 'station', name: 'תחנת חלל', width: 190 },
-  { count: 180, art: 'astronaut', name: 'אסטרונאוט', width: 100 },
-  { count: 190, art: 'moon', name: 'ירח', width: 150 },
-  { count: 200, art: 'ufo', name: 'צלחת מעופפת', width: 130 },
-  { count: 210, art: 'mars', name: 'מאדים', width: 120 },
-  { count: 220, art: 'comet', name: 'שביט', width: 180 },
-  { count: 230, art: 'saturn', name: 'שבתאי', width: 210 },
-  { count: 240, art: 'alien', name: 'חייזר', width: 100 },
-  { count: 250, art: 'jupiter', name: 'צדק', width: 150 },
-  { count: 260, art: 'spaceWhale', name: 'לוויתן חלל', width: 200 },
-  { count: 270, art: 'earth', name: 'כדור הארץ', width: 140 },
-  { count: 280, art: 'galaxy', name: 'גלקסיה', width: 200 },
-  { count: 290, art: 'shootingStar', name: 'כוכב נופל', width: 180 },
-  { count: 300, art: 'sun', name: 'שמש', width: 170 },
+  { count: 10, art: 'redBalloon', width: 56 },
+  { count: 20, art: 'kite', width: 80 },
+  { count: 30, art: 'songbird', width: 76 },
+  { count: 40, art: 'rcPlane', width: 110 },
+  { count: 50, art: 'eagle', width: 170 },
+  { count: 60, art: 'hotAir', width: 110 },
+  { count: 70, art: 'cessna', width: 160 },
+  { count: 80, art: 'helicopter', width: 150 },
+  { count: 90, art: 'dragon', width: 180 },
+  { count: 100, art: 'plane', width: 200 },
+  { count: 110, art: 'zeppelin', width: 200 },
+  { count: 120, art: 'jets', width: 180 },
+  { count: 130, art: 'weatherBalloon', width: 84 },
+  { count: 140, art: 'carpet', width: 160 },
+  { count: 150, art: 'shuttle', width: 96 },
+  { count: 160, art: 'satellite', width: 140 },
+  { count: 170, art: 'station', width: 190 },
+  { count: 180, art: 'astronaut', width: 100 },
+  { count: 190, art: 'moon', width: 150 },
+  { count: 200, art: 'ufo', width: 130 },
+  { count: 210, art: 'mars', width: 120 },
+  { count: 220, art: 'comet', width: 180 },
+  { count: 230, art: 'saturn', width: 210 },
+  { count: 240, art: 'alien', width: 100 },
+  { count: 250, art: 'jupiter', width: 150 },
+  { count: 260, art: 'spaceWhale', width: 200 },
+  { count: 270, art: 'earth', width: 140 },
+  { count: 280, art: 'galaxy', width: 200 },
+  { count: 290, art: 'shootingStar', width: 180 },
+  { count: 300, art: 'sun', width: 170 },
 ];
 
 export const milestoneAt = (count: number): Milestone | undefined => MILESTONES.find((m) => m.count === count);

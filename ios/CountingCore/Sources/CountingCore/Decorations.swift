@@ -23,8 +23,6 @@ public struct Milestone: Equatable {
     public var count: Int
     /// The drawing's name in the asset catalog.
     public var art: String
-    /// Hebrew name, for the greeting ("שלום, דרקון!").
-    public var name: String
     /// Width in points (at most a third of the screen), and height / width.
     public var width: Double
     public var aspect: Double

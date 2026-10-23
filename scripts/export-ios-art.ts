@@ -70,7 +70,7 @@ function aspect(svg: string): number {
 }
 
 const rows = MILESTONES.map(
-  (m) => `    Milestone(count: ${m.count}, art: "${m.art}", name: "${m.name}", width: ${m.width}, aspect: ${+aspect(art[m.art]).toFixed(6)}),`,
+  (m) => `    Milestone(count: ${m.count}, art: "${m.art}", width: ${m.width}, aspect: ${+aspect(art[m.art]).toFixed(6)}),`,
 );
 writeFileSync(
   MILESTONES_SWIFT,

@@ -46,7 +46,7 @@ final class DecorationsTests: XCTestCase {
         XCTAssertEqual(Set(milestones.map(\.art)).count, 30)
         XCTAssertEqual(milestones.prefix(9).map(\.art),
                        ["redBalloon", "kite", "songbird", "rcPlane", "eagle", "hotAir", "cessna", "helicopter", "dragon"])
-        XCTAssertEqual(milestone(at: 90)?.name, "דרקון")
+        XCTAssertEqual(milestone(at: 90)?.art, "dragon")
         XCTAssertNil(milestone(at: 95))
         XCTAssertNil(milestone(at: 310))
         for m in milestones {

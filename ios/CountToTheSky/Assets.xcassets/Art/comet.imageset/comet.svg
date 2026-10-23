@@ -1,2 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 50" width="160" height="50"><defs><linearGradient id="ct" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#bff6ff"/></linearGradient></defs>
-<path d="M0 18 L140 20 L140 30 L0 32Z" fill="url(#ct)"/><circle cx="140" cy="25" r="11" fill="#fff"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 50" width="160" height="50"><defs><linearGradient id="coT" x1="0" y1="0" x2="1" y2="0"><stop offset="0.00" stop-color="#bff6ff" stop-opacity="0"/><stop offset="1.00" stop-color="#bff6ff" stop-opacity="0.9"/></linearGradient><linearGradient id="coT2" x1="0" y1="0" x2="1" y2="0"><stop offset="0.00" stop-color="#ffd6f5" stop-opacity="0"/><stop offset="1.00" stop-color="#ffd6f5" stop-opacity="0.6"/></linearGradient><radialGradient id="coH" cx="0.5" cy="0.5" r="0.5"><stop offset="0.00" stop-color="#ffffff" stop-opacity="1"/><stop offset="0.50" stop-color="#e6fbff" stop-opacity="0.9"/><stop offset="1.00" stop-color="#9fe6ff" stop-opacity="0"/></radialGradient></defs>
+<path d="M10 6 L138 22 L136 26 L4 14Z" fill="url(#coT2)"/><path d="M10 44 L138 28 L136 24 L4 36Z" fill="url(#coT2)"/>
+<path d="M0 17 L140 20 L140 30 L0 33Z" fill="url(#coT)"/>
+<circle cx="140" cy="25" r="18" fill="url(#coH)"/><circle cx="140" cy="25" r="8" fill="#fff"/></svg>

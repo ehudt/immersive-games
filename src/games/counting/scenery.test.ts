@@ -21,7 +21,7 @@ describe('milestones', () => {
     expect(MILESTONES.slice(0, 9).map((m) => m.art)).toEqual([
       'redBalloon', 'kite', 'songbird', 'rcPlane', 'eagle', 'hotAir', 'cessna', 'helicopter', 'dragon',
     ]);
-    expect(milestoneAt(90)?.name).toBe('דרקון');
+    expect(milestoneAt(90)?.art).toBe('dragon');
     expect(milestoneAt(95)).toBeUndefined();
     expect(milestoneAt(310)).toBeUndefined();
   });

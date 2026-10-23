@@ -1,6 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120"><defs><clipPath id="ea"><circle cx="60" cy="60" r="56"/></clipPath></defs>
-<circle cx="60" cy="60" r="58" fill="none" stroke="#bff6ff" stroke-width="3" opacity="0.5"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120"><defs><clipPath id="ea"><circle cx="60" cy="60" r="56"/></clipPath><radialGradient id="eaS" cx="0.32" cy="0.28" r="0.8"><stop offset="0.00" stop-color="#ffffff" stop-opacity="0.45"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0"/><stop offset="1.00" stop-color="#0b1030" stop-opacity="0.3"/></radialGradient><radialGradient id="eaG" cx="0.5" cy="0.5" r="0.5"><stop offset="0.00" stop-color="#bff6ff" stop-opacity="0"/><stop offset="0.33" stop-color="#bff6ff" stop-opacity="0"/><stop offset="0.67" stop-color="#bff6ff" stop-opacity="0.7"/><stop offset="1.00" stop-color="#bff6ff" stop-opacity="0"/></radialGradient></defs>
+<circle cx="60" cy="60" r="60" fill="url(#eaG)"/>
 <circle cx="60" cy="60" r="56" fill="#2e86de"/>
 <g clip-path="url(#ea)" fill="#5fc24a"><path d="M30 20 Q50 10 58 26 Q52 40 60 52 Q46 60 38 48 Q24 46 30 20Z"/>
-<path d="M70 60 Q92 54 100 70 Q96 92 80 104 Q72 90 74 78 Q64 70 70 60Z"/><path d="M8 70 Q20 66 26 80 Q18 92 6 88Z"/></g>
-<path d="M18 60 Q38 54 54 62 M66 34 Q82 28 98 36 M40 96 Q54 92 66 98" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.8"/></svg>
+<path d="M70 60 Q92 54 100 70 Q96 92 80 104 Q72 90 74 78 Q64 70 70 60Z"/><path d="M8 70 Q20 66 26 80 Q18 92 6 88Z"/>
+<path d="M36 2 Q60 -2 84 2 Q60 10 36 2Z" fill="#fff"/></g>
+<path d="M18 60 Q38 54 54 62 M66 34 Q82 28 98 36 M40 96 Q54 92 66 98" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.8"/>
+<circle cx="60" cy="60" r="56" fill="url(#eaS)"/></svg>
