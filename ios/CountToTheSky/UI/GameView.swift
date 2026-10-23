@@ -232,32 +232,56 @@ private struct ListenIndicator: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Text("🎤")
-                .font(.system(size: 24))
-                .grayscale(model.listening ? 0 : 1)
-                .opacity(model.listening ? 1 : 0.6)
-                .phaseAnimator([false, true]) { v, big in
-                    v.scaleEffect(model.listening && big ? 1.12 : 1)
-                } animation: { _ in .easeInOut(duration: 1.4) }
-            TimelineView(.animation(paused: !model.hearing)) { tl in
-                let t = tl.date.timeIntervalSinceReferenceDate
-                HStack(spacing: 3) {
-                    ForEach(0..<4) { i in
-                        let wave = (1 - cos(2 * .pi * (t - Double(i) * 0.1) / 0.8)) / 2
-                        Capsule()
-                            .fill(Palette.teal)
-                            .frame(width: 5, height: model.hearing ? 6 + 16 * wave : 6)
-                    }
-                }
-                .frame(height: 22)
-            }
+            MicIcon(on: model.listening)
+            SoundBars(hearing: model.hearing)
             Text(model.listenText).font(.game(19).bold())
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 10)
         .background(Capsule().fill(.white.opacity(0.9)).shadow(color: .black.opacity(0.12), radius: 8, y: 4))
         .foregroundStyle(Palette.plum)
-        .environment(\.layoutDirection, .rightToLeft)
+    }
+}
+
+/// The mic, gray until it listens, then breathing.
+private struct MicIcon: View {
+    var on: Bool
+
+    var body: some View {
+        Text("🎤")
+            .font(.system(size: 24))
+            .grayscale(on ? 0 : 1)
+            .opacity(on ? 1 : 0.6)
+            .phaseAnimator([false, true]) { content, big in
+                content.scaleEffect(on && big ? 1.12 : 1)
+            } animation: { _ in
+                .easeInOut(duration: 1.4)
+            }
+    }
+}
+
+/// Four bars that bounce while speech is coming in.
+private struct SoundBars: View {
+    var hearing: Bool
+
+    var body: some View {
+        TimelineView(.animation(paused: !hearing)) { tl in
+            HStack(spacing: 3) {
+                ForEach(0..<4, id: \.self) { i in
+                    Capsule()
+                        .fill(Palette.teal)
+                        .frame(width: 5, height: height(bar: i, at: tl.date))
+                }
+            }
+            .frame(height: 22)
+        }
+    }
+
+    private func height(bar i: Int, at date: Date) -> CGFloat {
+        guard hearing else { return 6 }
+        let t = date.timeIntervalSinceReferenceDate - Double(i) * 0.1
+        let wave = (1 - cos(2 * Double.pi * t / 0.8)) / 2
+        return CGFloat(6 + 16 * wave)
     }
 }
 
