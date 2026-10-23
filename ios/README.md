@@ -7,6 +7,27 @@ Open `CountToTheSky.xcodeproj` in Xcode 16 or later, pick a team under
 Signing & Capabilities, and run. Speech recognition needs a real device or a
 simulator with a working microphone.
 
+## Install on your iPhone
+
+1. On a Mac with Xcode 16 or later: `git clone https://github.com/ehudt/immersive-games`
+   (or `git pull`), check out the branch, and open
+   `ios/CountToTheSky.xcodeproj`.
+2. Xcode → Settings → Accounts: add your Apple ID.
+3. Select the CountToTheSky target → Signing & Capabilities: tick
+   "Automatically manage signing" and pick your team. If Xcode says the
+   bundle identifier is taken, change `com.ehudt.CountToTheSky` to something
+   unique.
+4. Plug the iPhone in with a cable, unlock it and tap "Trust This Computer".
+   On the iPhone enable Settings → Privacy & Security → Developer Mode (it
+   restarts the phone). The option appears only after the phone has been
+   connected to Xcode once.
+5. Pick the iPhone in the device menu at the top of Xcode and press Run (⌘R).
+   The first build takes a minute.
+6. With a free Apple ID (not a paid developer account), trust the app once:
+   Settings → General → VPN & Device Management → your Apple ID → Trust.
+   Free-account builds expire after 7 days; run again from Xcode to renew.
+7. On first play, allow the microphone and speech recognition.
+
 ## Layout
 
 - `CountingCore/` — Swift package with the pure logic, ported line by line
